@@ -1,6 +1,7 @@
 """implementation of optics functions and light propogation functions"""
 __author__ = "Yuhao Liu", "Krish Kabra"
 
+import torch
 
 def get_zernike_volume():
     # TODO: function unknown
@@ -30,5 +31,8 @@ def zoom(image_batch, zoom_fraction):
     pass
 
 
+def comp_exp_tf(phase, dtype=torch.complex64):
+    pass
+    # TODO. Required in Fresnel Propagation
 
 
