@@ -1,4 +1,4 @@
-"""Optical elements & propagations"""
+"""Optical propagations"""
 
 import abc  # abstract class
 
@@ -8,19 +8,20 @@ import torch.nn.functional as F
 
 
 class Propagation(abc.ABC):
-    def __init__(self, input_shape, distance, discretization_size, lamda):
+    def __init__(self, input_shape, distance, discretization_size, wave_lengths):
         """
 
         :param input_shape:
         :param distance: z
         :param discretization_size:
         :param lamda: wavelengths
+
         """
         # TODO: what is the structure of input_shape?
         self.input_shape = input_shape
         self.distance = distance
-        self.wave_lengths = lamda
-        self.wave_nos = 2. * np.pi / lamda  # wavenumber, Eq3
+        self.wave_lengths = wave_lengths
+        self.wave_nos = 2. * np.pi / wave_lengths  # wavenumber, Eq3
         self.discretization_size = discretization_size  # TODO: of sensor?
 
     @abc.abstractmethod
