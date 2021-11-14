@@ -1,7 +1,7 @@
 """
 Data loader file
 """
-
+import cv2
 import os
 import os.path as p
 import numpy as np
@@ -52,17 +52,20 @@ class ImageFolder(VisionDataset):
         if input_transform is not None:
             self.input_transform = input_transform
         else:
-            self.input_transform = transforms.Compose([transforms.ToTensor])
+            self.input_transform = transforms.Compose([transforms.ToTensor()])
 
         if self.load_all:  # load entire dataset to memory
             raise NotImplementedError
 
     def __len__(self):
-        pass  # TODO
+        return len(self.inputs)
 
-    def __getitem__(self, item_idx):
+    def __getitem__(self, item):
+        """
+        :return: a mini batch input crop of shape (M, 3, H, W), and a mini batch of depth map of shape (M, H, W)
+        """
         if not self.load_all:
-            input_sample = cv_loader(p.join(self.input_dir, self.inputs[item_idx]))
+            input_sample = cv_loader(p.join(self.input_dir, self.inputs[item]))
         else:
             raise NotImplementedError
         input_sample = self.input_transform(input_sample)
