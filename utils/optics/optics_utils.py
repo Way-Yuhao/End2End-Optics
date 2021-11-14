@@ -32,6 +32,11 @@ def zoom(image_batch, zoom_fraction):
     pass
 
 
+def comp_exp_tf(phase, dtype=torch.complex64):
+    pass
+    # TODO. Required in Fresnel Propagation
+
+
 def phaseshifts_from_height_map(height_map, wave_lengths, refractive_idcs):
     """
     Calculates the phase shifts created by a height map with certain refractive index for light with specific wave
