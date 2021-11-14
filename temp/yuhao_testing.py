@@ -1,5 +1,6 @@
 """playground python file to test behavior of functions"""
 
+import os
 import numpy as np
 import torch
 from utils.edof_reader import DEPTH_OPTIONS
@@ -24,8 +25,8 @@ def generate_depth_map():
 
 
 def main():
-    for i in range(10):
-        print(generate_depth_map()[0][0])
+    os.environ["CUDA_VISIBLE_DEVICES"] = "6"
+    print(torch.cuda.device(2))
 
 
 if __name__ == "__main__":
