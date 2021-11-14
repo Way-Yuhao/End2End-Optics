@@ -67,6 +67,7 @@ class ImageFolder(VisionDataset):
             raise NotImplementedError
         input_sample = self.input_transform(input_sample)
         # TODO: data augmentation
+        input_sample = self.random_crop(input_sample)
         input_sample = self.normalize(input_sample)
         if self.isMonochrome:
             input_sample = cvt_monochrome(input_sample)
@@ -86,8 +87,14 @@ class ImageFolder(VisionDataset):
     def augment(self):
         raise NotImplementedError  # TODO
 
-    def crop(self):
-        raise NotImplementedError  # TODO
+    def random_crop(self, input_):
+        crop_width, crop_height = self.img_patch_size
+        max_h = input_.shape[1] - crop_height
+        max_w = input_.shape[2] - crop_width
+        h = np.random.randint(0, max_h)
+        w = np.random.randint(0, max_w)
+        input_crop = input_[:, h: h + crop_height, w: w + crop_width]
+        return input_crop
 
     def normalize(self, input_):
         return input_ / 255.  # as indicated in deep-optics
