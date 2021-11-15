@@ -64,7 +64,8 @@ class FresnelPropagation(Propagation):
         # Transfer function for Fresnel propogation
         # (see derivation at https://www.cis.rit.edu/class/simg738/Handouts/Derivation_of_Fresnel_Diffraction.pdf)
         squared_sum = torch.square(fx) + torch.square(fy)
-        complex_exponent_part = 2 * np.pi * self.distance * (1/self.wave_lengths) - 1. * np.pi * self.wave_lengths * squared_sum * self.distance
+        complex_exponent_part = -1. * np.pi * self.wave_lengths * squared_sum * self.distance
+        # complex_exponent_part = 2 * np.pi * self.distance * (1/self.wave_lengths) - 1. * np.pi * self.wave_lengths * squared_sum * self.distance # should it be this????
 
         H = torch.exp(torch.complex(torch.zeros_like(complex_exponent_part), complex_exponent_part))
 

@@ -1,9 +1,7 @@
 
 import torch
 import torch.nn as nn
-import optics.optics_utils as optics
-import optics.elements as elements
-import optics.propogations as propogations
+import optics
 
 class RGBCollimator(nn.Module): # TODO
     """Section 3.2 simple lens check"""
@@ -32,7 +30,7 @@ class RGBCollimator(nn.Module): # TODO
         input_field = torch.ones((1, self.wave_res[0], self.wave_res[1], len(self.wave_lengths)), dtype=)
 
         # Planar wave hits aperture: phase is shifted by phaseplate
-        field = elements.height_map_element(input_field,
+        field = optics.elements.height_map_element(input_field,
                                       wave_lengths=self.wave_lengths,
                                       # height_map_regularizer=optics.laplace_l1_regularizer(hm_reg_scale),
                                       # height_map_initializer=None,
@@ -40,10 +38,10 @@ class RGBCollimator(nn.Module): # TODO
                                       refractive_idcs=self.refractive_idcs,
                                       # name='height_map_optics'
                                             )
-        field = propogations.circular_aperture(field)
+        field = optics.elements.circular_aperture(field)
 
         # Propagate field from aperture to sensor
-        field = propogations.propagate_fresnel(field,
+        field = propagations.propagate_fresnel(field,
                                  distance=self.sensor_distance,
                                  sampling_interval=self.sample_interval,
                                  wave_lengths=self.wave_lengths)
