@@ -1,6 +1,7 @@
 
 import torch
 import torch.nn as nn
+import end2end.optics as optics
 
 class RGBCollimator(nn.Module): # TODO
     """Section 3.2 simple lens check"""
@@ -37,15 +38,16 @@ class RGBCollimator(nn.Module): # TODO
                                       refractive_idcs=self.refractive_idcs,
                                       # name='height_map_optics'
                                             )
+        field = optics.elements.circular_aperture(field)
 
         # Propagate field from aperture to sensor
-        field = propagations.propagate_fresnel(field,
+        field = optics.propagations.propagate_fresnel(field,
                                  distance=self.sensor_distance,
                                  sampling_interval=self.sample_interval,
                                  wave_lengths=self.wave_lengths)
 
         # The psf is the intensities of the propagated field.
-        psfs = optics.get_intensities(field)
+        psfs = optics.optics_utils.get_intensities(field)
 
         # Downsample psf to image resolution & normalize to sum to 1
         psfs = optics.area_downsampling_tf(psfs, self.patch_size)
