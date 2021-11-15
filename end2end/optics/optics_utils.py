@@ -56,6 +56,8 @@ def phaseshifts_from_height_map(height_map, wave_lengths, refractive_idcs):
     phase_shifts = torch.exp(phi)
     return phase_shifts
 
+def get_intensities(input_field):
+    return torch.square(torch.abs(input_field))
 
 def laplace_l1_regularizer(scale):  # TODO
     pass

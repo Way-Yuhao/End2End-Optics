@@ -8,7 +8,7 @@ from numpy.fft import ifftshift
 import fractions
 import poppy
 
-import optics_utils as optics
+import end2end.optics.optics_utils as optics_utils
 
 
 def circular_aperture(input_field):
@@ -57,7 +57,7 @@ class PhasePlate():
             self.height_map += -2 * self.height_tolerance * torch.rand(self.height_map.shape) + self.height_tolerance
             print("Phase plate with manufacturing tolerance {:0.2e}".format(self.height_tolerance))
 
-        self.phase_shifts = optics.phaseshifts_from_height_map(self.height_map,
+        self.phase_shifts = optics_utils.phaseshifts_from_height_map(self.height_map,
                                                         self.wave_lengths,
                                                         self.refractive_idcs)
 
