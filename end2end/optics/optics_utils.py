@@ -95,16 +95,16 @@ def psf2otf(psf, output_size):
 
 def img_psf_conv(img, psf, otf=None, adjoint=False, circular=False):
     """
-
-    :param img:
-    :param psf:
+    convolve input image with a given psf
+    :param img: input image of shape (m, c, h, w)
+    :param psf: point spread function of shape (c, h, w)
     :param otf: optical transfer function, or ft of psf
     :param adjoint: whether to perform an adjoin convolution or not. Legacy problem
     :param circular: whether to perform a circular convolution or not. Legacy problem
-    :return:
+    :return: convolved image of shape (??)
     """
     if adjoint is False or circular is False:
-        raise NotImplementedError
+        raise NotImplementedError  # not used in the scope of this paper
     assert (torch.is_tensor(img))  # ensure the dim of img follow pytorch tensor convention
     m, c, h, w = img.shape  # used to be [m, h, w, c] for tf
     assert (h == w)  # legacy problem. Previous code requires height = width
@@ -123,8 +123,9 @@ def img_psf_conv(img, psf, otf=None, adjoint=False, circular=False):
 
     otf = otf.astype(torch.complex64)
     img_fft = img_fft.astype(torch.complex64)
-    result = torch.fft.ifft2(img_fft, otf).astype(torch.float32)
-    return result
+    convolved_img = torch.fft.ifft2(img_fft, otf).astype(torch.float32)
+    assert(convolved_img.shape == img.shape)  # is this right?
+    return convolved_img
 
 
 def fspecial_gaussian(shape, sigma):
