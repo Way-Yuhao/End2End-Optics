@@ -1,13 +1,17 @@
 import cv2
 import torch
+import torch.nn as nn
 from torch.utils.tensorboard import SummaryWriter
 import numpy as np
 import os
 import os.path as p
+
+import end2end.optics.optics_utils
 from end2end.edof_reader import ImageFolder
 from tqdm import tqdm
 from matplotlib import pyplot as plt
 import torch.optim as optim
+import optics
 
 """Global Parameters"""
 div2k_dataset_path = "/mnt/data1/yl241/datasets/Div2K/train/"
@@ -53,8 +57,21 @@ def save_network_weights(net, ep):
     raise NotImplementedError
 
 
-def compute_loss():
-    raise NotImplementedError
+def compute_loss(output, target, heightmap, scale):
+    """
+
+    :param scale: scalar constant
+    :param output:
+    :param target:
+    :param heightmap:
+    :return: mse loss between output image and target image + scaled laplacian l1 regularizer on the heightmap
+    """
+    mse_criterion = nn.MSELoss()
+    mse_loss = mse_criterion(output, target)
+    with torch.no_grad():
+        laplacian_regularizer = end2end.optics.optics_utils.laplace_l1_regularizer(img_batch=heightmap, scale=scale)
+    total_loss = mse_loss + laplacian_regularizer
+    return total_loss
 
 
 def train_dev(net, device, tb, load_weights=False, pre_trained_params_path=None):

@@ -3,6 +3,7 @@ __author__ = "Yuhao Liu", "Krish Kabra"
 
 import torch
 import numpy as np
+import torch.nn.functional as F
 
 
 def get_intensities(input_field):
@@ -15,8 +16,10 @@ def get_intensities(input_field):
 
 
 def area_down_sampling(input_image, target_size_length):
-    input_shape = input_image.shape.as_list()
-    input_image = torch
+    # input_shape = input_image.shape.as_list()
+    # input_image = torch
+    raise NotImplementedError
+
 
 def fspecial_gaussian(shape, sigma):
     """
@@ -27,7 +30,7 @@ def fspecial_gaussian(shape, sigma):
     :return:
     """
     # TODO
-    pass
+    raise NotImplementedError
 
 
 def zoom(image_batch, zoom_fraction):
@@ -38,7 +41,7 @@ def zoom(image_batch, zoom_fraction):
     :return:
     """
     # TODO: possibly unused
-    pass
+    raise NotImplementedError
 
 
 def phaseshifts_from_height_map(height_map, wave_lengths, refractive_idcs):
@@ -57,14 +60,32 @@ def phaseshifts_from_height_map(height_map, wave_lengths, refractive_idcs):
     return phase_shifts
 
 
-def laplace_l1_regularizer(scale):  # TODO
-    pass
+def laplace_l1_regularizer(img_batch, scale):  # FIXME: call signature differs from tf
+    """
+    :param img_batch:
+    :param scale: scalar constant
+    :return:
+    """
+    if np.allclose(scale, 0.):
+        print("Scale of zero disables the laplace_l1_regularizer.")  # what is this
+
+    laplace_filtered = laplacian_filter_pytorch(img_batch)
+    # laplace_filtered = laplace_filtered[:, 1:-1, 1:-1, :]
+    laplace_filtered = laplace_filtered[:, :, 1:-1, 1:-1]  # pytorch specific
+    laplacian_regularizer = scale * torch.mean(torch.abs(laplace_filtered))
+    return laplacian_regularizer
 
 
-def laplacian_filter_pytorch(img_batch): # TODO
+def laplacian_filter_pytorch(img_batch):
+    laplacian_filter = torch.tensor([[1, 1, 1], [1, -8, 1], [1, 1, 1]], dtype=torch.float32)
+    laplacian_filter = torch.reshape(laplacian_filter, (1, 1, 3, 3))  # pytorch specific
 
-    pass
+    filter_input = img_batch.type(torch.float32)
+    # may heave to make sure require_grad is false
+    filtered_batch = F.conv2d(filter_input, laplacian_filter, padding="SAME")
+    return filtered_batch
+
 
 def get_zernike_volume():
     # TODO: function unknown
-    pass
+    raise NotImplementedError
