@@ -7,12 +7,8 @@ import optics
 
 
 def main():
-    a = torch.tensor([1, 1], dtype=torch.int8)
-    print(a)
-    print(a.dtype)
-    b = torch.tensor(a, dtype=torch.float32)
-    print(b)
-    print(b.dtype)
+    a = func(b) # not inplace
+    func(b) # in place
 
 
 if __name__ == "__main__":

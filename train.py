@@ -13,7 +13,7 @@ from end2end.edof_reader import ImageFolder
 from end2end.model import RGBCollimator
 
 """Global Parameters"""
-div2k_dataset_path = "/mnt/data1/yl241/datasets/Div2K/train/"
+div2k_dataset_path = "/mnt/data1/yl241/datasets/Div2K/"
 version = None
 num_workers_train = 16
 batch_size = 16
@@ -32,7 +32,8 @@ num_steps = 10001  # Number of SGD steps
 patch_size = 1248  # Size of patches to be extracted from images, and resolution of simulated sensor
 sample_interval = 2e-6  # Sampling interval (size of one "pixel" in the simulated wavefront)
 wave_resolution = 2496, 2496  # Resolution of the simulated wavefront
-
+height_map_noise = 20e-9
+hm_reg_scale = 1000.
 
 def set_device(devidx=6):
     """
@@ -56,7 +57,9 @@ def load_data(dataset_path):
 
 
 def print_params():
-    raise NotImplementedError
+    print("######## Basics ##################")
+    print("version: {}".format(version))
+    # TODO: add more
 
 
 def load_network_weights(net, path):
@@ -67,7 +70,7 @@ def save_network_weights(net, ep):
     raise NotImplementedError
 
 
-def compute_loss(output, target, heightmap, scale):
+def compute_loss(output, target, heightmap):
     """
 
     :param scale: scalar constant
@@ -79,7 +82,8 @@ def compute_loss(output, target, heightmap, scale):
     mse_criterion = nn.MSELoss()
     mse_loss = mse_criterion(output, target)
     with torch.no_grad():
-        laplacian_regularizer = end2end.optics.optics_utils.laplace_l1_regularizer(img_batch=heightmap, scale=scale)
+        laplacian_regularizer = \
+            end2end.optics.optics_utils.laplace_l1_regularizer(img_batch=heightmap, scale=hm_reg_scale)
     total_loss = mse_loss + laplacian_regularizer
     return total_loss
 
@@ -87,7 +91,7 @@ def compute_loss(output, target, heightmap, scale):
 def train_dev(net, device, tb, load_weights=False, pre_trained_params_path=None):
     print(device)
     print_params()
-    net.to(device)
+    # net.to(device) # TODO: change back
     net.train()
 
     if load_weights:
@@ -108,10 +112,11 @@ def train_dev(net, device, tb, load_weights=False, pre_trained_params_path=None)
 
         for _ in tqdm(range(num_mini_batches)):
             input_, depth = train_iter.next()
-            # TODO: to device
+            # input_, depth = input_.to(device), depth.to(device)
+            # net.to(device) TODO: change back
             optimizer.zero_grad()
-            # TODO: forward pass
-            loss = compute_loss()
+            output = net(input_)
+            loss = compute_loss(output=output, target=input_, heightmap=net.height_map)
             loss.backward()
             optimizer.step()
             running_train_loss += loss.item()
@@ -130,11 +135,14 @@ def train_dev(net, device, tb, load_weights=False, pre_trained_params_path=None)
 
 
 def main():
-    version_ = "-v0.0"
+    global version
+    version = "-v0.0"
     param_to_load = None
-    tb = SummaryWriter('./runs/RGBCollimator' + version_)
+    tb = SummaryWriter('./runs/RGBCollimator' + version)
     device = set_device()
-    net = RGBCollimator()  # TODO
+    net = RGBCollimator(sensor_distance=sensor_distance, refractive_idcs=refractive_idcs, wave_lengths=wave_lengths,
+                        patch_size=patch_size, sample_interval=sample_interval, wave_resolution=wave_resolution,
+                        height_map_noise=height_map_noise)  # TODO
     train_dev(net, device, tb, load_weights=False, pre_trained_params_path=param_to_load)
 
     tb.close()

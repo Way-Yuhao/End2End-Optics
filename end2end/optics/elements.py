@@ -21,9 +21,9 @@ def circular_aperture(input_field):
 
     max_val = np.amax(x)
 
-    r = np.sqrt(x ** 2 + y ** 2)[None, :, :, None]
-    aperture = (r < max_val).astype(np.float64) # Why cast like this?
-    return aperture * input_field
+    r = np.sqrt(x ** 2 + y ** 2)[None, None, :, :]
+    aperture = (r < max_val).astype(np.float64)  # Why cast like this?
+    return torch.tensor(aperture) * input_field
 
 
 class PhasePlate():
@@ -35,7 +35,7 @@ class PhasePlate():
                  height_map,
                  refractive_idcs,
                  height_tolerance=None,
-                 lateral_tolerance=None):
+                 lateral_tolerance=None, ):
         """
         :param wave_lengths (np.ndarray[num_wavelengths,]): list of wavelengths to be modeled
         :param height_map (Tensor[1, height, width, 1]): spatial thickness map of the phase plate
@@ -54,7 +54,11 @@ class PhasePlate():
     def _build(self):
         # Add manufacturing tolerances in the form of height map noise
         if self.height_tolerance is not None:
-            self.height_map += -2 * self.height_tolerance * torch.rand(self.height_map.shape) + self.height_tolerance
+            # self.height_map += -2 * self.height_tolerance * torch.rand(self.height_map.shape, requires_grad=False)\
+            #                    + self.height_tolerance
+            height_map_noise = -2 * self.height_tolerance * torch.rand(self.height_map.shape, requires_grad=False)\
+                                + self.height_tolerance
+            self.height_map = self.height_map + height_map_noise
             print("Phase plate with manufacturing tolerance {:0.2e}".format(self.height_tolerance))
 
         self.phase_shifts = optics_utils.phaseshifts_from_height_map(self.height_map,
@@ -71,7 +75,7 @@ class PhasePlate():
 
 
 def height_map_element(input_field,
-                       # name,
+                       height_map,
                        wave_lengths,
                        refractive_idcs,
                        block_size=1,
@@ -92,10 +96,6 @@ def height_map_element(input_field,
     :param height_tolerance: range of uniform noise added to height map
     :return: Phase plate element
     """
-    _, _, height, width = list(input_field.shape)
-
-    height_map_shape = [1, 1, height // block_size, width // block_size]
-
     # if height_map_initializer is None:
     #     height_map_initializer = torch.full(height_map_shape, 1e-4, dtype=torch.float64)
 
