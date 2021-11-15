@@ -35,6 +35,7 @@ wave_resolution = 2496, 2496  # Resolution of the simulated wavefront
 height_map_noise = 20e-9
 hm_reg_scale = 1000.
 
+
 def set_device(devidx=6):
     """
     Sets device to CUDA if available

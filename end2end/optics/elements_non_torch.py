@@ -30,12 +30,7 @@ class PhasePlate():
     """
     Model for optical element that modulates wavefront via phase shifts
     """
-    def __init__(self,
-                 wave_lengths,
-                 height_map,
-                 refractive_idcs,
-                 height_tolerance=None,
-                 lateral_tolerance=None, ):
+    def __init__(self, wave_lengths, height_map, refractive_idcs, height_tolerance=None, lateral_tolerance=None):
         """
         :param wave_lengths (np.ndarray[num_wavelengths,]): list of wavelengths to be modeled
         :param height_map (Tensor[1, height, width, 1]): spatial thickness map of the phase plate
