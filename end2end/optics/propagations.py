@@ -6,6 +6,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
+
 class Propagation(abc.ABC):
     def __init__(self, input_shape, distance, discretization_size, wave_lengths):
         """
@@ -74,6 +75,7 @@ class FresnelPropagation(Propagation):
         out_field = torch.fft.ifft2(objFT * H, dim=(1,2))
 
         return out_field
+
 
 def propagate_fresnel(input_field,
                       distance,

@@ -2,7 +2,7 @@ import cv2
 import torch
 import numpy as np
 import os
-from utils.edof_reader import ImageFolder
+from end2end.edof_reader import ImageFolder
 from tqdm import tqdm
 from matplotlib import pyplot as plt
 

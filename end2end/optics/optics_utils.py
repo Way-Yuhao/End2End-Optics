@@ -4,10 +4,19 @@ __author__ = "Yuhao Liu", "Krish Kabra"
 import torch
 import numpy as np
 
-def get_zernike_volume():
-    # TODO: function unknown
-    pass
 
+def get_intensities(input_field):
+    """
+    Extract 2D intensity data from a given wave field
+    :param input_field:
+    :return:
+    """
+    return torch.square(torch.abs(input_field))
+
+
+def area_down_sampling(input_image, target_size_length):
+    input_shape = input_image.shape.as_list()
+    input_image = torch
 
 def fspecial_gaussian(shape, sigma):
     """
@@ -31,6 +40,7 @@ def zoom(image_batch, zoom_fraction):
     # TODO: possibly unused
     pass
 
+
 def phaseshifts_from_height_map(height_map, wave_lengths, refractive_idcs):
     """
     Calculates the phase shifts created by a height map with certain refractive index for light with specific wave
@@ -47,10 +57,14 @@ def phaseshifts_from_height_map(height_map, wave_lengths, refractive_idcs):
     return phase_shifts
 
 
-def laplace_l1_regularizer(scale): #TODO
+def laplace_l1_regularizer(scale):  # TODO
     pass
 
-def laplacian_filter_pytorch(img_batch): #TODO
+
+def laplacian_filter_pytorch(img_batch): # TODO
 
     pass
 
+def get_zernike_volume():
+    # TODO: function unknown
+    pass

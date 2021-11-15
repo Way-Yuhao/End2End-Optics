@@ -24,6 +24,7 @@ def circular_aperture(input_field):
     aperture = (r < max_val).astype(np.float64) # Why cast like this?
     return aperture * input_field
 
+
 class PhasePlate():
     """
     Model for optical element that modulates wavefront via phase shifts
@@ -49,7 +50,7 @@ class PhasePlate():
 
         self._build()
 
-    def _build(self): #TODO
+    def _build(self):  # TODO
         # Add manufacturing tolerances in the form of height map noise
         if self.height_tolerance is not None:
             self.height_map += -2 * self.height_tolerance * torch.rand(self.height_map.shape) + self.height_tolerance
@@ -58,6 +59,7 @@ class PhasePlate():
         self.phase_shifts = optics.phaseshifts_from_height_map(self.height_map,
                                                         self.wave_lengths,
                                                         self.refractive_idcs)
+
     def __call__(self, input_field):
         """
         :param input_field (Tensor[batch_size, height, width, num_wavelengths]): complex valued wavefront
@@ -65,6 +67,7 @@ class PhasePlate():
         """
         input_field = input_field.type(torch.complex64)
         return torch.multiply(input_field, self.phase_shifts)
+
 
 def height_map_element(input_field,
                        # name,
@@ -108,22 +111,25 @@ def height_map_element(input_field,
 
     return element(input_field)
 
-def fourier_element(): #TODO
+
+def fourier_element():  # TODO
     pass
 
-def zernike_element(): #TODO
+
+def zernike_element():  # TODO
     pass
 
-def get_vanilla_height_map(): #TODO
+
+def get_vanilla_height_map():  # TODO
     pass
 
-def get_fourier_height_map(): #TODO
+
+def get_fourier_height_map():  # TODO
     pass
 
 
 class SingleLensSetup():  # TODO
     """
-
     """
 
     def __init__(self):
@@ -137,3 +143,4 @@ class ZernikeSystem():  # TODO
 
     def __init__(self):
         pass
+

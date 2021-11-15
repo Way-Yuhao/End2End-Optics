@@ -1,7 +1,6 @@
 
 import torch
 import torch.nn as nn
-import optics
 
 class RGBCollimator(nn.Module): # TODO
     """Section 3.2 simple lens check"""
@@ -23,7 +22,7 @@ class RGBCollimator(nn.Module): # TODO
         self.refractive_idcs = refractive_idcs
 
         # trainable height map
-        self.height_map = _height_map_initializer()
+        self.height_map = self._height_map_initializer()
 
     def forward(self, x):
         # Input field is a planar wave.
@@ -38,7 +37,6 @@ class RGBCollimator(nn.Module): # TODO
                                       refractive_idcs=self.refractive_idcs,
                                       # name='height_map_optics'
                                             )
-        field = optics.elements.circular_aperture(field)
 
         # Propagate field from aperture to sensor
         field = propagations.propagate_fresnel(field,
