@@ -1,17 +1,16 @@
 import cv2
 import torch
 import torch.nn as nn
+import torch.optim as optim
 from torch.utils.tensorboard import SummaryWriter
 import numpy as np
 import os
 import os.path as p
-
-import end2end.optics.optics_utils
-from end2end.edof_reader import ImageFolder
 from tqdm import tqdm
 from matplotlib import pyplot as plt
-import torch.optim as optim
-import optics
+import end2end.optics.optics_utils
+from end2end.edof_reader import ImageFolder
+from end2end.model import RGBCollimator
 
 """Global Parameters"""
 div2k_dataset_path = "/mnt/data1/yl241/datasets/Div2K/train/"
@@ -22,6 +21,17 @@ batch_size = 16
 """Hyper Parameters"""
 init_lr = 0.01
 epoch = 2000
+
+"""Simulation Parameters"""
+aperture_diameter = 5e-3 # (m)
+sensor_distance = 25e-3  # Distance of sensor to aperture (m)
+refractive_idcs = np.array([1.4648, 1.4599, 1.4568])  # Refractive idcs of the phaseplate
+wave_lengths = np.array([460, 550, 640]) * 1e-9  # Wave lengths to be modeled and optimized for
+ckpt_path = None
+num_steps = 10001  # Number of SGD steps
+patch_size = 1248  # Size of patches to be extracted from images, and resolution of simulated sensor
+sample_interval = 2e-6  # Sampling interval (size of one "pixel" in the simulated wavefront)
+wave_resolution = 2496, 2496  # Resolution of the simulated wavefront
 
 
 def set_device(devidx=6):
@@ -122,9 +132,9 @@ def train_dev(net, device, tb, load_weights=False, pre_trained_params_path=None)
 def main():
     version_ = "-v0.0"
     param_to_load = None
-    tb = SummaryWriter('./runs/unet' + version_)
+    tb = SummaryWriter('./runs/RGBCollimator' + version_)
     device = set_device()
-    net = None  # TODO
+    net = RGBCollimator()  # TODO
     train_dev(net, device, tb, load_weights=False, pre_trained_params_path=param_to_load)
 
     tb.close()

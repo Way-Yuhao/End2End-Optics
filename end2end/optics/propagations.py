@@ -10,11 +10,10 @@ import torch.nn.functional as F
 class Propagation(abc.ABC):
     def __init__(self, input_shape, distance, discretization_size, wave_lengths):
         """
-
         :param input_shape:
         :param distance: z
         :param discretization_size:
-        :param lamda: wavelengths
+        :param wave_lengths: wavelengths
 
         """
         # TODO: what is the structure of input_shape?
@@ -62,7 +61,7 @@ class FresnelPropagation(Propagation):
         fx = fx[None, None, :, :]
         fy = fy[None, None, :, :]
 
-        # Transfer function for Fresnel propogation
+        # Transfer function for Fresnel propagation
         # (see derivation at https://www.cis.rit.edu/class/simg738/Handouts/Derivation_of_Fresnel_Diffraction.pdf)
         squared_sum = torch.square(fx) + torch.square(fy)
         complex_exponent_part = -1. * np.pi * self.wave_lengths * squared_sum * self.distance
@@ -77,13 +76,8 @@ class FresnelPropagation(Propagation):
         return out_field
 
 
-def propagate_fresnel(input_field,
-                      distance,
-                      sampling_interval,
-                      wave_lengths):
+def propagate_fresnel(input_field, distance, sampling_interval, wave_lengths):
     input_shape = list(input_field.shape)
-    propagation = FresnelPropagation(input_shape,
-                                     distance=distance,
-                                     discretization_size=sampling_interval,
+    propagation = FresnelPropagation(input_shape, distance=distance, discretization_size=sampling_interval,
                                      wave_lengths=wave_lengths)
     return propagation(input_field)
