@@ -4,7 +4,7 @@ from torch.utils.tensorboard import SummaryWriter
 import numpy as np
 import os
 import os.path as p
-from utils.edof_reader import ImageFolder
+from end2end.edof_reader import ImageFolder
 from tqdm import tqdm
 from matplotlib import pyplot as plt
 import torch.optim as optim

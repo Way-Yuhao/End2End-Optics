@@ -3,31 +3,16 @@
 import os
 import numpy as np
 import torch
-from utils.edof_reader import DEPTH_OPTIONS
-
-# a = torch.ones((10, 10, 3))
-# a = torch.unsqueeze(a, dim=0)
-# print(a.shape)
-# print(torch.log(torch.tensor([5 * [1/5]])))
-
-img_patch_size = (1024, 1024)
-
-
-def generate_depth_map():
-    """
-    arbitrarily assign a planar depth for
-    :return:
-    """
-    rand_depth_idx = np.random.multinomial(1, [1 / 5] * 5)
-    rand_depth = DEPTH_OPTIONS[np.argmax(rand_depth_idx)]
-    rand_depth_map = torch.ones(img_patch_size, dtype=torch.float32) * rand_depth
-    return rand_depth_map
+import optics
 
 
 def main():
-    os.environ["CUDA_VISIBLE_DEVICES"] = "6"
-    print(torch.cuda.device(2))
-
+    a = torch.tensor([1, 1], dtype=torch.int8)
+    print(a)
+    print(a.dtype)
+    b = torch.tensor(a, dtype=torch.float32)
+    print(b)
+    print(b.dtype)
 
 if __name__ == "__main__":
     main()
