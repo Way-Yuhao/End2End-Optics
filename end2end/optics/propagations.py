@@ -39,10 +39,10 @@ class FresnelPropagation(Propagation):
     """
     def _propagate(self, input_field):
         """
-        :param input_field (Tensor[batch_size, height, width, num_wavelengths]): complex valued wavefront
+        :param input_field (Tensor[batch_size, num_wavelengths, height, width]): complex valued wavefront
         """
 
-        _, M_orig, N_orig, _ = self.input_shape
+        _, _, M_orig, N_orig = self.input_shape
         # zero padding
         Mpad, Npad = M_orig // 4, N_orig // 4
         M = M_orig + 2 * Mpad
@@ -59,8 +59,8 @@ class FresnelPropagation(Propagation):
         fx = torch.fft.ifftshift(fx)
         fy = torch.fft.ifftshift(fy)
 
-        fx = fx[None, :, :, None]
-        fy = fy[None, :, :, None]
+        fx = fx[None, None, :, :]
+        fy = fy[None, None, :, :]
 
         # Transfer function for Fresnel propogation
         # (see derivation at https://www.cis.rit.edu/class/simg738/Handouts/Derivation_of_Fresnel_Diffraction.pdf)
@@ -70,9 +70,9 @@ class FresnelPropagation(Propagation):
 
         H = torch.exp(torch.complex(torch.zeros_like(complex_exponent_part), complex_exponent_part))
 
-        objFT = torch.fft.fft2(padded_input_field, dim=(1,2))
+        objFT = torch.fft.fft2(padded_input_field)
         # Convolution
-        out_field = torch.fft.ifft2(objFT * H, dim=(1,2))
+        out_field = torch.fft.ifft2(objFT * H)
 
         return out_field
 
@@ -81,7 +81,7 @@ def propagate_fresnel(input_field,
                       distance,
                       sampling_interval,
                       wave_lengths):
-    input_shape = input_field.shape.as_list()
+    input_shape = list(input_field.shape)
     propagation = FresnelPropagation(input_shape,
                                      distance=distance,
                                      discretization_size=sampling_interval,

@@ -8,16 +8,16 @@ from numpy.fft import ifftshift
 import fractions
 import poppy
 
-import optics_utils as optics
+import end2end.optics.optics_utils as optics_utils
 
 
 def circular_aperture(input_field):
     """
     Propogate input field through circular aperture
     """
-    input_shape = input_field.shape.as_list()
-    [x, y] = np.mgrid[-input_shape[1] // 2: input_shape[1] // 2,
-                      -input_shape[2] // 2: input_shape[2] // 2].astype(np.float64)
+    input_shape = list(input_field.shape)
+    [x, y] = np.mgrid[-input_shape[2] // 2: input_shape[2] // 2,
+                      -input_shape[3] // 2: input_shape[3] // 2].astype(np.float64)
 
     max_val = np.amax(x)
 
@@ -51,13 +51,13 @@ class PhasePlate():
 
         self._build()
 
-    def _build(self):  # TODO
+    def _build(self):
         # Add manufacturing tolerances in the form of height map noise
         if self.height_tolerance is not None:
             self.height_map += -2 * self.height_tolerance * torch.rand(self.height_map.shape) + self.height_tolerance
             print("Phase plate with manufacturing tolerance {:0.2e}".format(self.height_tolerance))
 
-        self.phase_shifts = optics.phaseshifts_from_height_map(self.height_map,
+        self.phase_shifts = optics_utils.phaseshifts_from_height_map(self.height_map,
                                                         self.wave_lengths,
                                                         self.refractive_idcs)
 
@@ -92,9 +92,9 @@ def height_map_element(input_field,
     :param height_tolerance: range of uniform noise added to height map
     :return: Phase plate element
     """
-    _, height, width, _ = input_field.shape.tolist()
+    _, _, height, width = list(input_field.shape)
 
-    height_map_shape = [1, height // block_size, width // block_size, 1]
+    height_map_shape = [1, 1, height // block_size, width // block_size]
 
     # if height_map_initializer is None:
     #     height_map_initializer = torch.full(height_map_shape, 1e-4, dtype=torch.float64)
