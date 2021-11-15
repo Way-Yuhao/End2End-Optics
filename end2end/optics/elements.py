@@ -10,6 +10,7 @@ import poppy
 
 import optics_utils as optics
 
+
 def circular_aperture(input_field):
     """
     Propogate input field through circular aperture
