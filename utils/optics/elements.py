@@ -10,6 +10,21 @@ import poppy
 
 import optics_utils as optics
 
+
+def circular_aperture(input_field):
+    """
+    Propogate input field through circular aperture
+    """
+    input_shape = input_field.shape.as_list()
+    [x, y] = np.mgrid[-input_shape[1] // 2: input_shape[1] // 2,
+                      -input_shape[2] // 2: input_shape[2] // 2].astype(np.float64)
+
+    max_val = np.amax(x)
+
+    r = np.sqrt(x ** 2 + y ** 2)[None, :, :, None]
+    aperture = (r < max_val).astype(np.float64) # Why cast like this?
+    return aperture * input_field
+
 class PhasePlate():
     """
     Model for optical element that modulates wavefront via phase shifts
@@ -83,7 +98,7 @@ def height_map_element(input_field,
 
     # height_map_var = Parameter(height_map_initializer, requires_grad=True)
 
-    height_map_full = torch.
+    # height_map_full = torch.
 
     # height_map = torch.square(height_map_full)
 
