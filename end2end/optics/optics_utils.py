@@ -19,6 +19,7 @@ def get_zernike_volume(resolution, n_terms, scale_factor=1e-6):
     zernike_volume = poppy.zernike.zernike_basis(nterms=n_terms, npix=resolution, outside=0.0)
     return zernike_volume * scale_factor
 
+
 def get_intensities(input_field):
     """
     Extract 2D intensity data from a given wave field
@@ -61,12 +62,69 @@ def area_down_sampling(input_image, target_side_length):
                                       size=2 * [upsample_factor * target_side_length],
                                       mode='nearest'
                                       )
-        output_img = F.avg_pool2d(img_upsampled,
-                                  (upsample_factor, upsample_factor)
-                                  strides=[upsample_factor, upsample_factor],
-                                  )
+        # output_img = F.avg_pool2d(img_upsampled,
+        #                           (upsample_factor, upsample_factor)
+        # strides = [upsample_factor, upsample_factor], )  # FIXME
 
-    return output_img
+        return output_img
+
+
+def psf2otf(psf, output_size):
+    """
+    apply Fourier Transform to psf to obtain its optical transfer function
+    :param psf: point spread function of shape  (c, h, w)
+    :param output_size: size of otf
+    :return: otf of shape (c, h', w')
+    """
+    _, fh, fw = psf.shape  # filter height and width
+    if output_size[1] != fh:  # requires padding
+        pad = (output_size[1] - fh) / 2
+        if (output_size[1] - fh) % 2 != 0:
+            pad_top = pad_left = int(np.ceil(pad))
+            pad_bottom = pad_right = int(np.floor(pad))
+        else:
+            pad_top = pad_left = int(pad) + 1
+            pad_bottom = pad_right = int(pad) - 1
+        padded = F.pad(psf, [pad_left, pad_right, pad_top, pad_bottom, 0, 0])
+    else:
+        padded = psf
+    padded = torch.fft.ifft2(padded)
+    otf = torch.fft.fft2(torch.complex(padded, torch.tensor(0.)))  # FIXME: why is this necessary?
+    return otf
+
+
+def img_psf_conv(img, psf, otf=None, adjoint=False, circular=False):
+    """
+
+    :param img:
+    :param psf:
+    :param otf: optical transfer function, or ft of psf
+    :param adjoint: whether to perform an adjoin convolution or not. Legacy problem
+    :param circular: whether to perform a circular convolution or not. Legacy problem
+    :return:
+    """
+    if adjoint is False or circular is False:
+        raise NotImplementedError
+    assert (torch.is_tensor(img))  # ensure the dim of img follow pytorch tensor convention
+    m, c, h, w = img.shape  # used to be [m, h, w, c] for tf
+    assert (h == w)  # legacy problem. Previous code requires height = width
+    target_side_length = 2 * h
+    height_pad = (target_side_length - h) / 2
+    width_pad = (target_side_length - w) / 2
+    pad_top, pad_bottom = int(np.ceil(height_pad)), int(np.ceil(height_pad))
+    pad_left, pad_right = int(np.ceil(width_pad)), int(np.floor(width_pad))
+
+    padded_img = F.pad(img, [pad_left, pad_right, pad_top, pad_bottom, 0, 0, 0, 0], mode="constant")
+    padded_img_shape = padded_img.shape
+    img_fft = torch.fft.fft2(padded_img)
+
+    if otf is None:
+        otf = psf2otf(psf, output_size=padded_img_shape[2:4])  # pytorch specific, should be h, w
+
+    otf = otf.astype(torch.complex64)
+    img_fft = img_fft.astype(torch.complex64)
+    result = torch.fft.ifft2(img_fft, otf).astype(torch.float32)
+    return result
 
 
 def fspecial_gaussian(shape, sigma):
@@ -130,10 +188,5 @@ def laplacian_filter_pytorch(img_batch):
 
     filter_input = img_batch.type(torch.float32)
     # may heave to make sure require_grad is false
-    filtered_batch = F.conv2d(filter_input, laplacian_filter, padding="SAME")
+    filtered_batch = F.conv2d(filter_input, laplacian_filter, padding="same")
     return filtered_batch
-
-
-def get_zernike_volume():
-    # TODO: function unknown
-    raise NotImplementedError
