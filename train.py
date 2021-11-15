@@ -10,7 +10,7 @@ from tqdm import tqdm
 from matplotlib import pyplot as plt
 import end2end.optics.optics_utils
 from end2end.edof_reader import ImageFolder
-from end2end.model import RGBCollimator
+from end2end.model_old import RGBCollimator
 
 """Global Parameters"""
 div2k_dataset_path = "/mnt/data1/yl241/datasets/Div2K/"

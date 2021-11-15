@@ -1,9 +1,8 @@
 """playground python file to test behavior of functions"""
 
-import os
 import numpy as np
 import torch
-import optics
+import torch.nn.functional as F
 
 
 def main():
