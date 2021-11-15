@@ -62,9 +62,9 @@ def area_down_sampling(input_image, target_side_length):
                                       size=2 * [upsample_factor * target_side_length],
                                       mode='nearest'
                                       )
-        # output_img = F.avg_pool2d(img_upsampled,
-        #                           (upsample_factor, upsample_factor)
-        # strides = [upsample_factor, upsample_factor], )  # FIXME
+        output_img = F.avg_pool2d(img_upsampled,
+                                  (upsample_factor, upsample_factor),
+                                  strides = [upsample_factor, upsample_factor])
 
         return output_img
 
