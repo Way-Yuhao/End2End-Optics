@@ -99,12 +99,12 @@ def train_dev(net, device, tb, load_weights=False, pre_trained_params_path=None)
     if load_weights:
         load_network_weights(net, pre_trained_params_path)
 
-    train_loader = load_data(p.join(div2k_dataset_path, "train"))
+    train_loader = load_data(p.join(div2k_dataset_path, "small_50"))
 
     num_mini_batches = len(train_loader)
     # TODO: modify this
     optimizer = optim.SGD(net.parameters(), lr=init_lr, momentum=.5)
-    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[500, 1000, 1500], gamma=.8)
+    # scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[500, 1000, 1500], gamma=.8)
 
     running_train_loss = 0.0
     # training loop
@@ -115,7 +115,6 @@ def train_dev(net, device, tb, load_weights=False, pre_trained_params_path=None)
         for _ in tqdm(range(num_mini_batches)):
             input_, depth = train_iter.next()
             input_, depth = input_.to(device), depth.to(device)
-            # net.to(device)
             optimizer.zero_grad()
             output = net(input_)
             loss = compute_loss(output=output, target=input_, heightmap=net.heightMapElement.height_map)
@@ -131,7 +130,7 @@ def train_dev(net, device, tb, load_weights=False, pre_trained_params_path=None)
         # TODO: dev
 
         running_train_loss = 0.0
-        scheduler.step()
+        # scheduler.step()
         # TODO: display samples per some epochs
 
     print("finished training")
@@ -141,18 +140,17 @@ def train_dev(net, device, tb, load_weights=False, pre_trained_params_path=None)
 
 def main():
     global version
-    version = "-v0.0"
+    version = "-v0.2-tiny"
     param_to_load = None
     tb = SummaryWriter('./runs/RGBCollimator' + version)
     device = set_device()
     net = RGBCollimator(sensor_distance=sensor_distance, refractive_idcs=refractive_idcs, wave_lengths=wave_lengths,
                         patch_size=patch_size, sample_interval=sample_interval, wave_resolution=wave_resolution,
-                        height_tolerance=height_tolerance)  # TODO
+                        height_tolerance=height_tolerance)
     with torch.cuda.device(device):
         train_dev(net, device, tb, load_weights=False, pre_trained_params_path=param_to_load)
 
     tb.close()
-
 
 
 if __name__ == "__main__":

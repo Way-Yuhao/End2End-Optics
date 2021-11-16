@@ -70,6 +70,7 @@ class RGBCollimator(nn.Module):
         # optics.attach_summaries('output_image', output_image, image=True, log_image=False) TODO
 
         # add sensor noise
+        # FIXME
         rand_sigma = torch.tensor((.02 - .001) * torch.rand(1) + 0.001).cuda()  # standard deviation drawn from uni dist
         # add gaussian noise
         output_image += torch.normal(mean=torch.zeros_like(output_image),
