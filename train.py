@@ -15,8 +15,8 @@ from end2end.model import RGBCollimator
 """Global Parameters"""
 div2k_dataset_path = "/mnt/data1/yl241/datasets/Div2K/"
 version = None
-num_workers_train = 4
-batch_size = 1
+num_workers_train = 8
+batch_size = 8
 
 """Hyper Parameters"""
 init_lr = 0.01
@@ -29,10 +29,10 @@ refractive_idcs = np.array([1.4648, 1.4599, 1.4568])  # Refractive idcs of the p
 wave_lengths = np.array([460, 550, 640]) * 1e-9  # Wave lengths to be modeled and optimized for
 ckpt_path = None
 num_steps = 10001  # Number of SGD steps
-patch_size = 1248  # Size of patches to be extracted from images, and resolution of simulated sensor
+patch_size = 512  # Size of patches to be extracted from images, and resolution of simulated sensor
 sample_interval = 2e-6  # Sampling interval (size of one "pixel" in the simulated wavefront)
-# wave_resolution = 2496, 2496  # Resolution of the simulated wavefront
-wave_resolution = 512, 512  # Resolution of the simulated wavefront FIXME
+wave_resolution = 2496, 2496  # Resolution of the simulated wavefront
+# wave_resolution = 512, 512  # Resolution of the simulated wavefront FIXME
 height_tolerance = 20e-9
 hm_reg_scale = 1000.
 
@@ -53,8 +53,8 @@ def set_device(devidx=6):
 
 def load_data(dataset_path):
     data_loader = torch.utils.data.DataLoader(
-        ImageFolder(input_dir=dataset_path, img_patch_size=(512, 512), input_transform=None, load_all=False,
-                    monochrome=False, augment=False), batch_size=16, num_workers=0)
+        ImageFolder(input_dir=dataset_path, img_patch_size=(patch_size, patch_size), input_transform=None, load_all=False,
+                    monochrome=False, augment=False), batch_size=batch_size, num_workers=num_workers_train)
     return data_loader
 
 
@@ -103,7 +103,7 @@ def train_dev(net, device, tb, load_weights=False, pre_trained_params_path=None)
 
     num_mini_batches = len(train_loader)
     # TODO: modify this
-    optimizer = optim.Adam(net.parameters(), lr=init_lr)
+    optimizer = optim.SGD(net.parameters(), lr=init_lr, momentum=.5)
     scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[500, 1000, 1500], gamma=.8)
 
     running_train_loss = 0.0
@@ -122,7 +122,10 @@ def train_dev(net, device, tb, load_weights=False, pre_trained_params_path=None)
             loss.backward()
             optimizer.step()
             running_train_loss += loss.item()
+            torch.cuda.empty_cache()
+
         # record loss values after each epoch
+        print(running_train_loss)
         cur_train_loss = running_train_loss / num_mini_batches
         tb.add_scalar('loss/train', cur_train_loss, ep)
         # TODO: dev
@@ -149,6 +152,7 @@ def main():
         train_dev(net, device, tb, load_weights=False, pre_trained_params_path=param_to_load)
 
     tb.close()
+
 
 
 if __name__ == "__main__":
