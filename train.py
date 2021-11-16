@@ -32,7 +32,7 @@ num_steps = 10001  # Number of SGD steps
 patch_size = 1248  # Size of patches to be extracted from images, and resolution of simulated sensor
 sample_interval = 2e-6  # Sampling interval (size of one "pixel" in the simulated wavefront)
 wave_resolution = 2496, 2496  # Resolution of the simulated wavefront
-height_map_noise = 20e-9
+height_tolerance = 20e-9
 hm_reg_scale = 1000.
 
 
@@ -143,7 +143,7 @@ def main():
     device = set_device()
     net = RGBCollimator(sensor_distance=sensor_distance, refractive_idcs=refractive_idcs, wave_lengths=wave_lengths,
                         patch_size=patch_size, sample_interval=sample_interval, wave_resolution=wave_resolution,
-                        height_map_noise=height_map_noise)  # TODO
+                        height_tolerance=height_tolerance)  # TODO
     train_dev(net, device, tb, load_weights=False, pre_trained_params_path=param_to_load)
 
     tb.close()

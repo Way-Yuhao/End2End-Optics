@@ -69,7 +69,7 @@ class PhasePlate(torch.nn.Module):
                                + self.height_tolerance
             # height_map_noise = -2 * self.height_tolerance * torch.rand(self.height_map_shape) \
             #                         + self.height_tolerance
-            self.height_map = self.height_map + self.height_map_noise
+            self.height_map = self.height_map + self.height_map_noise.to("cuda:6")
 
         self.phase_shifts = optics_utils.phaseshifts_from_height_map(self.height_map, self.wave_lengths,
                                                                      self.refractive_idcs)
