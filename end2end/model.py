@@ -27,7 +27,7 @@ class RGBCollimator(nn.Module):
         # self.height_map = self.height_map_initializer()
 
         # Input field is a planar wave.
-        self.input_field = torch.ones((1, len(self.wave_lengths), self.wave_res[0], self.wave_res[1]))
+        self.input_field = nn.Parameter(torch.ones((1, len(self.wave_lengths), self.wave_res[0], self.wave_res[1])))
 
         # Planar wave hits aperture: phase is shifted by phase plate
         self.heightMapElement = \

@@ -62,14 +62,15 @@ class PhasePlate(torch.nn.Module):
         """
         # Add manufacturing tolerances in the form of height map noise
         if self.height_tolerance is not None:
-            # TODO: require_grad?
+            pass
+            # TODO: require_grad? Add noise later
             # height_map_noise = -2 * self.height_tolerance * torch.rand(self.height_map_shape, requires_grad=False) \
                                     # + self.height_tolerance
-            self.height_map_noise = -2 * self.height_tolerance * torch.rand(self.height_map_shape, requires_grad=False) \
-                               + self.height_tolerance
+            # self.height_map_noise = -2 * self.height_tolerance * torch.rand(self.height_map_shape, requires_grad=False) \
+            #                   + self.height_tolerance
             # height_map_noise = -2 * self.height_tolerance * torch.rand(self.height_map_shape) \
             #                         + self.height_tolerance
-            self.height_map = self.height_map + self.height_map_noise.to("cuda:6")
+            # self.height_map = self.height_map + self.height_map_noise.to("cuda:6")
 
         self.phase_shifts = optics_utils.phaseshifts_from_height_map(self.height_map, self.wave_lengths,
                                                                      self.refractive_idcs)
