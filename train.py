@@ -26,7 +26,8 @@ epoch = 2000
 aperture_diameter = 5e-3  # (m)
 sensor_distance = 25e-3  # Distance of sensor to aperture (m)
 refractive_idcs = np.array([1.4648, 1.4599, 1.4568])  # Refractive idcs of the phaseplate
-wave_lengths = np.array([460, 550, 640]) * 1e-9  # Wave lengths to be modeled and optimized for
+# wave_lengths = np.array([460, 550, 640]) * 1e-9  # Wave lengths to be modeled and optimized for
+wave_lengths = np.array([550, 550, 550]) * 1e-9  # Wave lengths to be modeled and optimized for
 ckpt_path = None
 num_steps = 10001  # Number of SGD steps
 patch_size = 512  # Size of patches to be extracted from images, and resolution of simulated sensor
@@ -173,7 +174,7 @@ def train_dev(net, device, tb, load_weights=False, pre_trained_params_path=None)
 
 def main():
     global version
-    version = "-v0.3-tiny"
+    version = "-v0.4-tiny-mono"
     param_to_load = None
     tb = SummaryWriter('./runs/RGBCollimator' + version)
     device = set_device()
