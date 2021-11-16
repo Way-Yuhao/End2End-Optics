@@ -3,7 +3,7 @@
 import numpy as np
 import torch
 import torch.nn.functional as F
-
+from yuhao_testing2 import multiply
 
 class M(torch.nn.Module):
     def __init__(self):
@@ -16,15 +16,12 @@ class M(torch.nn.Module):
         return multiply(x, self.a)
 
 
-def multiply(a, b):
-    return a * b
-
-
 def main():
     m = M()
     m.to("cuda:6")
     input = torch.tensor(4).to("cuda:6")
-    out = m(input)
+    with torch.cuda.device(6):
+        out = m(input)
     print(out)
 
 
