@@ -19,7 +19,7 @@ num_workers_train = 8
 batch_size = 8
 
 """Hyper Parameters"""
-init_lr = 0.01
+init_lr = 1e-4
 epoch = 2000
 
 """Simulation Parameters"""
