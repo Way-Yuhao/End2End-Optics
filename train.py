@@ -16,7 +16,7 @@ from end2end.model import RGBCollimator
 div2k_dataset_path = "/mnt/data1/yl241/datasets/Div2K/"
 version = None
 num_workers_train = 4
-batch_size = 4
+batch_size = 1
 
 """Hyper Parameters"""
 init_lr = 0.01
@@ -31,7 +31,8 @@ ckpt_path = None
 num_steps = 10001  # Number of SGD steps
 patch_size = 1248  # Size of patches to be extracted from images, and resolution of simulated sensor
 sample_interval = 2e-6  # Sampling interval (size of one "pixel" in the simulated wavefront)
-wave_resolution = 2496, 2496  # Resolution of the simulated wavefront
+# wave_resolution = 2496, 2496  # Resolution of the simulated wavefront
+wave_resolution = 512, 512  # Resolution of the simulated wavefront FIXME
 height_tolerance = 20e-9
 hm_reg_scale = 1000.
 
@@ -117,7 +118,7 @@ def train_dev(net, device, tb, load_weights=False, pre_trained_params_path=None)
             # net.to(device)
             optimizer.zero_grad()
             output = net(input_)
-            loss = compute_loss(output=output, target=input_, heightmap=net.height_map)
+            loss = compute_loss(output=output, target=input_, heightmap=net.heightMapElement.height_map)
             loss.backward()
             optimizer.step()
             running_train_loss += loss.item()

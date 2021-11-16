@@ -12,7 +12,7 @@ class M(torch.nn.Module):
 
     def forward(self, x):
         # return x * torch.tensor([2])
-        wtf = self.a + torch.nn.Parameter(torch.tensor([2.]).to("cuda:6"))
+        wtf = self.a + torch.nn.Parameter(torch.tensor([2.]).cuda())
         return multiply(x, self.a)
 
 

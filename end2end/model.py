@@ -13,21 +13,21 @@ class RGBCollimator(nn.Module):
                  wave_resolution, height_tolerance, block_size=1):
         super(RGBCollimator, self).__init__()
 
-        self.wave_res = torch.tensor(wave_resolution)
-        self.wave_lengths = torch.tensor(wave_lengths)
-        self.sensor_distance = torch.tensor(sensor_distance)
-        self.sample_interval = torch.tensor(sample_interval)
-        self.patch_size = torch.tensor(patch_size)
-        self.refractive_idcs = torch.tensor(refractive_idcs)
-        self.height_tolerance = torch.tensor(height_tolerance)
-        self.block_size = torch.tensor(block_size)
+        self.wave_res = torch.tensor(wave_resolution).to("cuda:6")
+        self.wave_lengths = torch.tensor(wave_lengths).to("cuda:6")
+        self.sensor_distance = torch.tensor(sensor_distance).to("cuda:6")
+        self.sample_interval = torch.tensor(sample_interval).to("cuda:6")
+        self.patch_size = torch.tensor(patch_size).to("cuda:6")
+        self.refractive_idcs = torch.tensor(refractive_idcs).to("cuda:6")
+        self.height_tolerance = torch.tensor(height_tolerance).to("cuda:6")
+        self.block_size = torch.tensor(block_size).to("cuda:6")
 
         # trainable height map
         height_map_shape = [1, 1, self.wave_res[0] // block_size, self.wave_res[1] // block_size]
         # self.height_map = self.height_map_initializer()
 
         # Input field is a planar wave.
-        self.input_field = torch.ones((1, len(self.wave_lengths), self.wave_res[0], self.wave_res[1])).cuda()
+        self.input_field = torch.ones((1, len(self.wave_lengths), self.wave_res[0], self.wave_res[1])).to("cuda:6")
 
         # Planar wave hits aperture: phase is shifted by phase plate
         self.heightMapElement = \
@@ -66,11 +66,11 @@ class RGBCollimator(nn.Module):
         # optics.attach_summaries('PSF', psfs, image=True, log_image=True) TODO
 
         # Image formation: PSF is convolved with input image
-        output_image = optics_utils.img_psf_conv(x, psfs).astype(torch.float32)
+        output_image = optics_utils.img_psf_conv(x, psfs).type(torch.float32)
         # optics.attach_summaries('output_image', output_image, image=True, log_image=False) TODO
 
         # add sensor noise
-        rand_sigma = torch.tensor((.02 - .001) * torch.rand() + 0.001).cuda()  # standard deviation drawn from uni dist
+        rand_sigma = torch.tensor((.02 - .001) * torch.rand(1) + 0.001).cuda()  # standard deviation drawn from uni dist
         # add gaussian noise
         output_image += torch.normal(mean=torch.zeros_like(output_image),
                                      std=torch.ones_like(output_image) * rand_sigma)

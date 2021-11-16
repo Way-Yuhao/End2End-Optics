@@ -63,7 +63,7 @@ def area_down_sampling(input_image, target_side_length):
                                       mode='nearest')
         output_img = F.avg_pool2d(img_upsampled,
                                   (upsample_factor, upsample_factor),
-                                  strides=[upsample_factor, upsample_factor])
+                                  stride=[upsample_factor, upsample_factor])
 
         return output_img
 
@@ -87,8 +87,8 @@ def psf2otf(psf, output_size):
         padded = F.pad(psf, [pad_left, pad_right, pad_top, pad_bottom, 0, 0, 0, 0])
     else:
         padded = psf
-    padded = torch.fft.ifft2(padded)
-    otf = torch.fft.fft2(torch.complex(padded, torch.tensor(0.)))
+    padded = torch.fft.ifftshift(padded)
+    otf = torch.fft.fft2(torch.complex(padded, torch.zeros_like(padded)))
     return otf
 
 
@@ -102,7 +102,7 @@ def img_psf_conv(img, psf, otf=None, adjoint=False, circular=False):
     :param circular: whether to perform a circular convolution or not. Legacy problem
     :return: convolved image of shape (??)
     """
-    if adjoint is False or circular is False:
+    if adjoint is True or circular is True:
         raise NotImplementedError  # not used in the scope of this paper
     assert (torch.is_tensor(img))  # ensure the dim of img follow pytorch tensor convention
     m, c, h, w = img.shape  # used to be [m, h, w, c] for tf
@@ -120,11 +120,12 @@ def img_psf_conv(img, psf, otf=None, adjoint=False, circular=False):
     if otf is None:
         otf = psf2otf(psf, output_size=padded_img_shape)  # pytorch specific, should be (m, c, padded_h, padded_w)
 
-    otf = otf.astype(torch.complex64)
-    img_fft = img_fft.astype(torch.complex64)
-    convolved_img = torch.fft.ifft2(img_fft, otf).astype(torch.float32)
-    assert(convolved_img.shape == img.shape)  # is this right?
-    return convolved_img
+    otf = otf.type(torch.complex64)
+    img_fft = img_fft.type(torch.complex64)
+    convolved_img = torch.fft.ifft2(img_fft * otf).type(torch.float32)
+    output_img = convolved_img[:, :, pad_top:-pad_bottom, pad_left:-pad_right]
+    assert(output_img.shape == img.shape)  # is this right?
+    return output_img
 
 
 def fspecial_gaussian(shape, sigma):
@@ -162,7 +163,7 @@ def phaseshifts_from_height_map(height_map, wave_lengths, refractive_idcs):
     wave_nos = wave_nos.reshape([1, -1, 1, 1])
     # phase delay indiced by height field
     phi = wave_nos * delta_N * height_map
-    phase_shifts = torch.exp(phi)
+    phase_shifts = torch.exp(torch.complex(torch.zeros_like(phi), phi))
     return phase_shifts
 
 

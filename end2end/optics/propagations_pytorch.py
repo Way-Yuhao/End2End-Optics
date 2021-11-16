@@ -53,12 +53,12 @@ class FresnelPropagation(torch.nn.Module):
         M = M_orig + 2 * Mpad
         N = N_orig + 2 * Npad
 
-        padded_input_field = F.pad(input_field, [0, 0, Mpad, Mpad, Npad, Npad, 0, 0], mode='constant', value=0.0)
+        padded_input_field = F.pad(input_field, [Mpad, Mpad, Npad, Npad, 0, 0, 0, 0], mode='constant', value=0.0)
         [x, y] = np.mgrid[-N // 2: N // 2, -M // 2: M // 2]
 
         # spatial frequency; max frequency = 1 / ( 2 * pixel_size)
-        fx = torch.tensor(x) / (self.discretization_size * N)
-        fy = torch.tensor(y) / (self.discretization_size * M)
+        fx = torch.tensor(x).to("cuda:6") / (self.discretization_size * N)
+        fy = torch.tensor(y).to("cuda:6") / (self.discretization_size * M)
 
         # rearranges a zero-frequency-shifted Fourier transform Y back to the original transform output
         fx = torch.fft.ifftshift(fx)
@@ -70,7 +70,9 @@ class FresnelPropagation(torch.nn.Module):
         # Transfer function for Fresnel propagation
         # (see derivation at https://www.cis.rit.edu/class/simg738/Handouts/Derivation_of_Fresnel_Diffraction.pdf)
         squared_sum = torch.square(fx) + torch.square(fy)
-        complex_exponent_part = -1. * np.pi * self.wave_lengths * squared_sum * self.distance
+        # complex_exponent_part = -1. * np.pi * self.wave_lengths * squared_sum * self.distance
+        # complex_exponent_part = -1. * np.pi * self.wave_lengths * torch.concat((squared_sum, squared_sum, squared_sum), dim=1) * self.distance
+        complex_exponent_part = -1. * np.pi * self.wave_lengths.reshape(1, 3, 1, 1) * torch.concat((squared_sum, squared_sum, squared_sum), dim=1) * self.distance
         # complex_exponent_part = 2 * np.pi * self.distance * (1/self.wave_lengths) - 1. * np.pi * self.wave_lengths * squared_sum * self.distance # should it be this????
 
         H = torch.exp(torch.complex(torch.zeros_like(complex_exponent_part), complex_exponent_part))
