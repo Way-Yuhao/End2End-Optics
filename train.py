@@ -10,7 +10,7 @@ from tqdm import tqdm
 from matplotlib import pyplot as plt
 import end2end.optics.optics_utils
 from end2end.edof_reader import ImageFolder
-from end2end.model_old import RGBCollimator
+from end2end.model import RGBCollimator
 
 """Global Parameters"""
 div2k_dataset_path = "/mnt/data1/yl241/datasets/Div2K/"
@@ -92,7 +92,7 @@ def compute_loss(output, target, heightmap):
 def train_dev(net, device, tb, load_weights=False, pre_trained_params_path=None):
     print(device)
     print_params()
-    # net.to(device) # TODO: change back
+    net.to(device)
     net.train()
 
     if load_weights:
@@ -113,8 +113,8 @@ def train_dev(net, device, tb, load_weights=False, pre_trained_params_path=None)
 
         for _ in tqdm(range(num_mini_batches)):
             input_, depth = train_iter.next()
-            # input_, depth = input_.to(device), depth.to(device)
-            # net.to(device) TODO: change back
+            input_, depth = input_.to(device), depth.to(device)
+            net.to(device)
             optimizer.zero_grad()
             output = net(input_)
             loss = compute_loss(output=output, target=input_, heightmap=net.height_map)

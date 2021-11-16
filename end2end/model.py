@@ -23,15 +23,15 @@ class RGBCollimator(nn.Module):
         self.block_size = block_size
 
         # trainable height map
-        self.height_map_shape = [1, 1, self.wave_res[0] // block_size, self.wave_res[1] // block_size]
-        self.height_map = self.height_map_initializer()
+        height_map_shape = [1, 1, self.wave_res[0] // block_size, self.wave_res[1] // block_size]
+        # self.height_map = self.height_map_initializer()
 
         # Input field is a planar wave.
         self.input_field = torch.ones((1, len(self.wave_lengths), self.wave_res[0], self.wave_res[1]))
 
         # Planar wave hits aperture: phase is shifted by phase plate
         self.heightMapElement = \
-            elements.HeightMapElement(height_map=self.height_map, wave_lengths=self.wave_lengths,
+            elements.HeightMapElement(height_map_shape=height_map_shape, wave_lengths=self.wave_lengths,
                                       height_tolerance=self.height_map_noise, refractive_idcs=self.refractive_idcs)
 
         self.circularAperture = elements.CircularAperture()
@@ -45,13 +45,13 @@ class RGBCollimator(nn.Module):
         self.circularAperture.requires_grad_(False)
         self.fresnelPropagation.requires_grad_(False)
 
-    def height_map_initializer(self):
-        height_map = torch.full(self.height_map_shape, 1e-4, dtype=torch.float64)
-        return nn.parameter.Parameter(height_map, requires_grad=True)
+    # def height_map_initializer(self):
+    #     height_map = torch.full(self.height_map_shape, 1e-4, dtype=torch.float64)
+    #     return nn.parameter.Parameter(height_map, requires_grad=True)
 
     def forward(self, x):
         """
-        :param x: input field
+        :param x: input image
         :return:
         """
         field = self.heightMapElement(self.input_field)
