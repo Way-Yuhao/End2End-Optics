@@ -3,10 +3,33 @@ import numpy as np
 import end2end.optics.optics_utils as optics_utils
 
 
+class CircularAperture(torch.nn.Module):
+
+    def __init__(self):
+        super(CircularAperture, self).__init__()
+
+    def forward(self, input_field):
+        """
+        Propogate input field through circular aperture
+        :param input_field:
+        :return:
+        """
+        input_shape = list(input_field.shape)
+        [x, y] = np.mgrid[-input_shape[2] // 2: input_shape[2] // 2,
+                          -input_shape[3] // 2: input_shape[3] // 2].astype(np.float64)
+
+        max_val = np.amax(x)
+
+        r = np.sqrt(x ** 2 + y ** 2)[None, None, :, :]
+        aperture = (r < max_val).astype(np.float64)  # Why cast like this?
+        return torch.tensor(aperture) * input_field
+
+
 class PhasePlate(torch.nn.Module):
     """
     Propogate input field through circular aperture
     """
+
     def __init__(self, wave_lengths, height_map, refractive_idcs, height_tolerance=None, lateral_tolerance=None):
         """
         :param wave_lengths (np.ndarray[num_wavelengths,]): list of wavelengths to be modeled
@@ -39,6 +62,29 @@ class PhasePlate(torch.nn.Module):
         """
         input_field = x.type(torch.complex64)
         return torch.multiply(input_field, self.phase_shifts)
+
+
+class HeightMapElement(PhasePlate):
+    """
+    Propogate wavefront through a phase modulating element with a given height map
+    """
+
+    def __init__(self, input_field, height_map, wave_lengths, refractive_idcs, height_tolerance=None):
+        """
+        :param input_field (Tensor[batch_size, height, width, num_wavelengths]): complex valued wavefront
+        :param wave_lengths (np.ndarray[num_wavelengths,]): list of wavelengths to be modeled
+        :param refractive_idcs (np.ndarray[num_wavelengths,]): list of refractive indicies of the phase plate
+        # :param block_size: ??
+        :param height_map_initializer (Tensor[1, height, width, 1]): custom initialization for height map of phase plate
+        # :param height_map_regularizer: ?? NOT NEEDED
+        :param height_tolerance: range of uniform noise added to height map (default height tolerance is 2 nm)
+        :return: Phase plate element
+        """
+        super(HeightMapElement, self).__init__(wave_lengths=wave_lengths, height_map=height_map,
+                                               refractive_idcs=refractive_idcs, height_tolerance=height_tolerance)
+
+    def forward(self, input_field):
+        return super(HeightMapElement, self).forward(input_field)
 
 
 def height_map_element():  # TODO
