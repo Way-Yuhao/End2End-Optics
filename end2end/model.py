@@ -10,7 +10,7 @@ class RGBCollimator(nn.Module):
     """Section 3.2 simple lens check"""
 
     def __init__(self, sensor_distance, refractive_idcs, wave_lengths, patch_size, sample_interval,
-                 wave_resolution, height_map_noise, block_size=1):
+                 wave_resolution, height_tolerance, block_size=1):
         super(RGBCollimator, self).__init__()
 
         self.wave_res = wave_resolution
@@ -19,7 +19,7 @@ class RGBCollimator(nn.Module):
         self.sample_interval = sample_interval
         self.patch_size = patch_size
         self.refractive_idcs = refractive_idcs
-        self.height_map_noise = height_map_noise
+        self.height_tolerance = height_tolerance
         self.block_size = block_size
 
         # trainable height map
@@ -32,7 +32,7 @@ class RGBCollimator(nn.Module):
         # Planar wave hits aperture: phase is shifted by phase plate
         self.heightMapElement = \
             elements.HeightMapElement(height_map_shape=height_map_shape, wave_lengths=self.wave_lengths,
-                                      height_tolerance=self.height_map_noise, refractive_idcs=self.refractive_idcs)
+                                      height_tolerance=self.height_tolerance, refractive_idcs=self.refractive_idcs)
 
         self.circularAperture = elements.CircularAperture()
 

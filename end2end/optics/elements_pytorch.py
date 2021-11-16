@@ -42,26 +42,37 @@ class PhasePlate(torch.nn.Module):
         super(PhasePlate, self).__init__()
         self.height_map_shape = height_map_shape
         self.wave_lengths = wave_lengths
-        self.height_map = None  # requires child class to init
         self.refractive_idcs = refractive_idcs
         self.height_tolerance = height_tolerance
         self.lateral_tolerance = lateral_tolerance
+        self.height_map = None  # requires child class to init
+        self.phase_shifts = None
+        self.height_map_noise = None
 
-        # Add manufacturing tolerances in the form of height map noise
         if self.height_tolerance is not None:
-            height_map_noise = -2 * self.height_tolerance * torch.rand(self.height_map_shape, requires_grad=False) \
-                               + self.height_tolerance
-            # self.height_map = self.height_map + height_map_noise  # requires action in child class
             print("Phase plate with manufacturing tolerance {:0.2e}".format(self.height_tolerance))
 
-        self.phase_shifts = optics_utils.phaseshifts_from_height_map(self.height_map, self.wave_lengths,
-                                                                     self.refractive_idcs)
+    def height_map_initializer(self):
+        raise NotImplementedError  # requires definiation in child classes
 
     def forward(self, x):
         """
         :param x: input_field (Tensor[batch_size, height, width, num_wavelengths]), complex valued wavefront
         :return: input field shifted by phase plate
         """
+        # Add manufacturing tolerances in the form of height map noise
+        if self.height_tolerance is not None:
+            # TODO: require_grad?
+            # height_map_noise = -2 * self.height_tolerance * torch.rand(self.height_map_shape, requires_grad=False) \
+                                    # + self.height_tolerance
+            self.height_map_noise = -2 * self.height_tolerance * torch.rand(self.height_map_shape, requires_grad=False) \
+                               + self.height_tolerance
+            # height_map_noise = -2 * self.height_tolerance * torch.rand(self.height_map_shape) \
+            #                         + self.height_tolerance
+            self.height_map = self.height_map + self.height_map_noise
+
+        self.phase_shifts = optics_utils.phaseshifts_from_height_map(self.height_map, self.wave_lengths,
+                                                                     self.refractive_idcs)
         input_field = x.type(torch.complex64)
         return torch.multiply(input_field, self.phase_shifts)
 
@@ -82,10 +93,9 @@ class HeightMapElement(PhasePlate):
         :param height_tolerance: range of uniform noise added to height map (default height tolerance is 2 nm)
         :return: Phase plate element
         """
-        self.height_map_shape = height_map_shape
-        height_map = self.height_map_initializer()
-        super(HeightMapElement, self).__init__(wave_lengths=wave_lengths, height_map=height_map,
+        super(HeightMapElement, self).__init__(height_map_shape=height_map_shape, wave_lengths=wave_lengths,
                                                refractive_idcs=refractive_idcs, height_tolerance=height_tolerance)
+        self.height_map = self.height_map_initializer()
 
     def height_map_initializer(self):
         height_map = torch.full(self.height_map_shape, 1e-4, dtype=torch.float64)

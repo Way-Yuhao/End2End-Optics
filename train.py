@@ -23,7 +23,7 @@ init_lr = 0.01
 epoch = 2000
 
 """Simulation Parameters"""
-aperture_diameter = 5e-3 # (m)
+aperture_diameter = 5e-3  # (m)
 sensor_distance = 25e-3  # Distance of sensor to aperture (m)
 refractive_idcs = np.array([1.4648, 1.4599, 1.4568])  # Refractive idcs of the phaseplate
 wave_lengths = np.array([460, 550, 640]) * 1e-9  # Wave lengths to be modeled and optimized for
@@ -114,7 +114,7 @@ def train_dev(net, device, tb, load_weights=False, pre_trained_params_path=None)
         for _ in tqdm(range(num_mini_batches)):
             input_, depth = train_iter.next()
             input_, depth = input_.to(device), depth.to(device)
-            net.to(device)
+            # net.to(device)
             optimizer.zero_grad()
             output = net(input_)
             loss = compute_loss(output=output, target=input_, heightmap=net.height_map)
