@@ -13,21 +13,21 @@ class RGBCollimator(nn.Module):
                  wave_resolution, height_tolerance, block_size=1):
         super(RGBCollimator, self).__init__()
 
-        self.wave_res = wave_resolution
-        self.wave_lengths = wave_lengths
-        self.sensor_distance = sensor_distance
-        self.sample_interval = sample_interval
-        self.patch_size = patch_size
-        self.refractive_idcs = refractive_idcs
-        self.height_tolerance = height_tolerance
-        self.block_size = block_size
+        self.wave_res = torch.tensor(wave_resolution)
+        self.wave_lengths = torch.tensor(wave_lengths)
+        self.sensor_distance = torch.tensor(sensor_distance)
+        self.sample_interval = torch.tensor(sample_interval)
+        self.patch_size = torch.tensor(patch_size)
+        self.refractive_idcs = torch.tensor(refractive_idcs)
+        self.height_tolerance = torch.tensor(height_tolerance)
+        self.block_size = torch.tensor(block_size)
 
         # trainable height map
         height_map_shape = [1, 1, self.wave_res[0] // block_size, self.wave_res[1] // block_size]
         # self.height_map = self.height_map_initializer()
 
         # Input field is a planar wave.
-        self.input_field = nn.Parameter(torch.ones((1, len(self.wave_lengths), self.wave_res[0], self.wave_res[1])))
+        self.input_field = torch.ones((1, len(self.wave_lengths), self.wave_res[0], self.wave_res[1])).cuda()
 
         # Planar wave hits aperture: phase is shifted by phase plate
         self.heightMapElement = \
@@ -70,7 +70,7 @@ class RGBCollimator(nn.Module):
         # optics.attach_summaries('output_image', output_image, image=True, log_image=False) TODO
 
         # add sensor noise
-        rand_sigma = (.02 - .001) * torch.rand() + 0.001  # standard deviation drawn from uni dist
+        rand_sigma = torch.tensor((.02 - .001) * torch.rand() + 0.001).cuda()  # standard deviation drawn from uni dist
         # add gaussian noise
         output_image += torch.normal(mean=torch.zeros_like(output_image),
                                      std=torch.ones_like(output_image) * rand_sigma)

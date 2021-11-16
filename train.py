@@ -15,8 +15,8 @@ from end2end.model import RGBCollimator
 """Global Parameters"""
 div2k_dataset_path = "/mnt/data1/yl241/datasets/Div2K/"
 version = None
-num_workers_train = 16
-batch_size = 16
+num_workers_train = 4
+batch_size = 4
 
 """Hyper Parameters"""
 init_lr = 0.01
@@ -144,7 +144,8 @@ def main():
     net = RGBCollimator(sensor_distance=sensor_distance, refractive_idcs=refractive_idcs, wave_lengths=wave_lengths,
                         patch_size=patch_size, sample_interval=sample_interval, wave_resolution=wave_resolution,
                         height_tolerance=height_tolerance)  # TODO
-    train_dev(net, device, tb, load_weights=False, pre_trained_params_path=param_to_load)
+    with torch.cuda.device(device):
+        train_dev(net, device, tb, load_weights=False, pre_trained_params_path=param_to_load)
 
     tb.close()
 

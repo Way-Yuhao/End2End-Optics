@@ -23,7 +23,7 @@ class CircularAperture(torch.nn.Module):
 
         r = np.sqrt(x ** 2 + y ** 2)[None, None, :, :]
         aperture = (r < max_val).astype(np.float64)  # Why cast like this?
-        return torch.tensor(aperture) * input_field
+        return torch.tensor(aperture).cuda() * input_field
 
 
 class PhasePlate(torch.nn.Module):

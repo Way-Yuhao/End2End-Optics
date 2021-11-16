@@ -36,8 +36,8 @@ class FresnelPropagation(torch.nn.Module):
         """
         super(FresnelPropagation, self).__init__()
         self.input_shape = input_shape
-        self.distance = torch.tensor(distance)
-        self.wave_lengths = torch.tensor(wave_lengths)
+        self.distance = distance
+        self.wave_lengths = wave_lengths
         # self.wave_nos = 2. * np.pi / wave_lengths  # wavenumber, Eq3
         self.discretization_size = discretization_size  # TODO: of sensor?
 

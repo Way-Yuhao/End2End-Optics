@@ -20,7 +20,7 @@ def main():
     m = M()
     m.to("cuda:6")
     input = torch.tensor(4).to("cuda:6")
-    with torch.cuda.device(6):
+    with torch.cuda.device("cuda:6"):
         out = m(input)
     print(out)
 
