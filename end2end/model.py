@@ -52,7 +52,7 @@ class RGBCollimator(nn.Module):
     def forward(self, x):
         """
         :param x: input image
-        :return:
+        :return: output image [m, c, x, y], psf [1, c, x, y]
         """
         field = self.heightMapElement(self.input_field)
         field = self.circularAperture(field)
@@ -76,4 +76,4 @@ class RGBCollimator(nn.Module):
         output_image += torch.normal(mean=torch.zeros_like(output_image),
                                      std=torch.ones_like(output_image) * rand_sigma)
 
-        return output_image
+        return output_image, psfs

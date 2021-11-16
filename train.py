@@ -90,6 +90,34 @@ def compute_loss(output, target, heightmap):
     return total_loss
 
 
+def disp_plt(img, title="", idx=None):
+    """
+    :param img: image to display
+    :param title: title of the figure
+    :param idx: index of the file, for print purposes
+    :param tone_map: applies tone mapping via cv2 if set to True
+    :return: None
+    """
+    img = img.detach().clone()
+
+    if len(img.shape) == 3:
+        img = img.unsqueeze(0)
+
+    if img.shape[1] == 3:  # RGB
+        img = img.cpu().squeeze().permute(1, 2, 0)
+    else:  # monochrome
+        img = img.cpu().squeeze()
+        img = torch.stack((img, img, img), dim=0).permute(1, 2, 0)
+    img = np.float32(img)
+    plt.imshow(img)
+    # compiling title
+    if idx:
+        title = "{} (index {})".format(title, idx)
+    full_title = "{} / {}".format(version, title)
+    plt.title(full_title)
+    return
+
+
 def train_dev(net, device, tb, load_weights=False, pre_trained_params_path=None):
     print(device)
     print_params()
@@ -116,7 +144,12 @@ def train_dev(net, device, tb, load_weights=False, pre_trained_params_path=None)
             input_, depth = train_iter.next()
             input_, depth = input_.to(device), depth.to(device)
             optimizer.zero_grad()
-            output = net(input_)
+            output, psf = net(input_)
+
+            # disp_plt(output[0, :, :, :], title="output", idx=0)
+            # disp_plt(psf[0, :, :, :]/psf.max(), title="psf, max = {}".format(psf.max()), idx=0)
+            # plt.show()
+
             loss = compute_loss(output=output, target=input_, heightmap=net.heightMapElement.height_map)
             loss.backward()
             optimizer.step()
@@ -140,7 +173,7 @@ def train_dev(net, device, tb, load_weights=False, pre_trained_params_path=None)
 
 def main():
     global version
-    version = "-v0.2-tiny"
+    version = "-v0.3-tiny"
     param_to_load = None
     tb = SummaryWriter('./runs/RGBCollimator' + version)
     device = set_device()
