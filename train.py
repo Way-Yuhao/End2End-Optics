@@ -180,7 +180,7 @@ def main():
     device = set_device()
     net = RGBCollimator(sensor_distance=sensor_distance, refractive_idcs=refractive_idcs, wave_lengths=wave_lengths,
                         patch_size=patch_size, sample_interval=sample_interval, wave_resolution=wave_resolution,
-                        height_tolerance=height_tolerance)
+                        height_tolerance=height_tolerance, device=device)
     with torch.cuda.device(device):
         train_dev(net, device, tb, load_weights=False, pre_trained_params_path=param_to_load)
 
