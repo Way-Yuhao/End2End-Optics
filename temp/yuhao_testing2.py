@@ -60,6 +60,11 @@ def train_dev():
         break
 
 
+def multiply(a, b):
+    c = torch.tensor([4]).cuda()
+    return a * b + c
+
+
 def main():
     train_dev()
 

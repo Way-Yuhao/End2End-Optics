@@ -1,18 +1,28 @@
 """playground python file to test behavior of functions"""
 
-import os
 import numpy as np
 import torch
-import optics
+import torch.nn.functional as F
+from yuhao_testing2 import multiply
+
+class M(torch.nn.Module):
+    def __init__(self):
+        super(M, self).__init__()
+        self.a = torch.nn.Parameter(torch.tensor([0.]))
+
+    def forward(self, x):
+        # return x * torch.tensor([2])
+        wtf = self.a + torch.nn.Parameter(torch.tensor([2.]).cuda())
+        return multiply(x, self.a)
 
 
 def main():
-    a = torch.tensor([1, 1], dtype=torch.int8)
-    print(a)
-    print(a.dtype)
-    b = torch.tensor(a, dtype=torch.float32)
-    print(b)
-    print(b.dtype)
+    m = M()
+    m.to("cuda:6")
+    input = torch.tensor(4).to("cuda:6")
+    with torch.cuda.device("cuda:6"):
+        out = m(input)
+    print(out)
 
 
 if __name__ == "__main__":

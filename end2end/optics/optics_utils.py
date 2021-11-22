@@ -52,19 +52,18 @@ def area_down_sampling(input_image, target_side_length):
         lcm_factor = least_common_multiple(target_side_length, input_shape[1]) / target_side_length
 
         if lcm_factor > 10:
-            print(
-                "Warning: area downsampling is very expensive and not precise if source and target wave length have a large least common multiple")
+            print("Warning: area downsampling is very expensive and not precise "
+                  "if source and target wave length have a large least common multiple")
             upsample_factor = 10
         else:
             upsample_factor = int(lcm_factor)
 
         img_upsampled = F.interpolate(input_image,
                                       size=2 * [upsample_factor * target_side_length],
-                                      mode='nearest'
-                                      )
+                                      mode='nearest')
         output_img = F.avg_pool2d(img_upsampled,
                                   (upsample_factor, upsample_factor),
-                                  strides = [upsample_factor, upsample_factor])
+                                  stride=[upsample_factor, upsample_factor])
 
         return output_img
 
@@ -72,24 +71,24 @@ def area_down_sampling(input_image, target_side_length):
 def psf2otf(psf, output_size):
     """
     apply Fourier Transform to psf to obtain its optical transfer function
-    :param psf: point spread function of shape  (c, h, w)
+    :param psf: point spread function of shape  (m, c, h, w)
     :param output_size: size of otf
-    :return: otf of shape (c, h', w')
+    :return: otf of shape (m, c, h', w')
     """
-    _, fh, fw = psf.shape  # filter height and width
-    if output_size[1] != fh:  # requires padding
-        pad = (output_size[1] - fh) / 2
-        if (output_size[1] - fh) % 2 != 0:
+    _, _, fh, fw = psf.shape  # filter height and width
+    if output_size[2] != fh:  # requires padding
+        pad = (output_size[2] - fh) / 2
+        if (output_size[2] - fh) % 2 != 0:
             pad_top = pad_left = int(np.ceil(pad))
             pad_bottom = pad_right = int(np.floor(pad))
         else:
             pad_top = pad_left = int(pad) + 1
             pad_bottom = pad_right = int(pad) - 1
-        padded = F.pad(psf, [pad_left, pad_right, pad_top, pad_bottom, 0, 0])
+        padded = F.pad(psf, [pad_left, pad_right, pad_top, pad_bottom, 0, 0, 0, 0])
     else:
         padded = psf
-    padded = torch.fft.ifft2(padded)
-    otf = torch.fft.fft2(torch.complex(padded, torch.tensor(0.)))  # FIXME: why is this necessary?
+    padded = torch.fft.ifftshift(padded)
+    otf = torch.fft.fft2(torch.complex(padded, torch.zeros_like(padded)))
     return otf
 
 
@@ -103,7 +102,7 @@ def img_psf_conv(img, psf, otf=None, adjoint=False, circular=False):
     :param circular: whether to perform a circular convolution or not. Legacy problem
     :return: convolved image of shape (??)
     """
-    if adjoint is False or circular is False:
+    if adjoint is True or circular is True:
         raise NotImplementedError  # not used in the scope of this paper
     assert (torch.is_tensor(img))  # ensure the dim of img follow pytorch tensor convention
     m, c, h, w = img.shape  # used to be [m, h, w, c] for tf
@@ -119,13 +118,14 @@ def img_psf_conv(img, psf, otf=None, adjoint=False, circular=False):
     img_fft = torch.fft.fft2(padded_img)
 
     if otf is None:
-        otf = psf2otf(psf, output_size=padded_img_shape[2:4])  # pytorch specific, should be h, w
+        otf = psf2otf(psf, output_size=padded_img_shape)  # pytorch specific, should be (m, c, padded_h, padded_w)
 
-    otf = otf.astype(torch.complex64)
-    img_fft = img_fft.astype(torch.complex64)
-    convolved_img = torch.fft.ifft2(img_fft, otf).astype(torch.float32)
-    assert(convolved_img.shape == img.shape)  # is this right?
-    return convolved_img
+    otf = otf.type(torch.complex64)
+    img_fft = img_fft.type(torch.complex64)
+    convolved_img = torch.fft.ifft2(img_fft * otf).type(torch.float32)
+    output_img = convolved_img[:, :, pad_top:-pad_bottom, pad_left:-pad_right]
+    assert(output_img.shape == img.shape)  # is this right?
+    return output_img
 
 
 def fspecial_gaussian(shape, sigma):
@@ -163,7 +163,7 @@ def phaseshifts_from_height_map(height_map, wave_lengths, refractive_idcs):
     wave_nos = wave_nos.reshape([1, -1, 1, 1])
     # phase delay indiced by height field
     phi = wave_nos * delta_N * height_map
-    phase_shifts = torch.exp(phi)
+    phase_shifts = torch.exp(torch.complex(torch.zeros_like(phi), phi))
     return phase_shifts
 
 
@@ -184,10 +184,10 @@ def laplace_l1_regularizer(img_batch, scale):  # FIXME: call signature differs f
 
 
 def laplacian_filter_pytorch(img_batch):
-    laplacian_filter = torch.tensor([[1, 1, 1], [1, -8, 1], [1, 1, 1]], dtype=torch.float32)
+    laplacian_filter = torch.tensor([[1, 1, 1], [1, -8, 1], [1, 1, 1]], dtype=torch.float32).cuda()
     laplacian_filter = torch.reshape(laplacian_filter, (1, 1, 3, 3))  # pytorch specific
 
-    filter_input = img_batch.type(torch.float32)
+    filter_input = img_batch.type(torch.float32).cuda()
     # may heave to make sure require_grad is false
     filtered_batch = F.conv2d(filter_input, laplacian_filter, padding="same")
     return filtered_batch
