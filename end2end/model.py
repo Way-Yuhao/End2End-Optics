@@ -9,25 +9,25 @@ import end2end.optics.optics_utils as optics_utils
 class RGBCollimator(nn.Module):
     """Section 3.2 simple lens check"""
 
-    def __init__(self, device, sensor_distance, refractive_idcs, wave_lengths, patch_size, sample_interval,
+    def __init__(self, sensor_distance, refractive_idcs, wave_lengths, patch_size, sample_interval,
                  wave_resolution, height_tolerance, block_size=1):
         super(RGBCollimator, self).__init__()
 
-        self.wave_res = torch.tensor(wave_resolution).to(device)
-        self.wave_lengths = torch.tensor(wave_lengths).to(device)
-        self.sensor_distance = torch.tensor(sensor_distance).to(device)
-        self.sample_interval = torch.tensor(sample_interval).to(device)
-        self.patch_size = torch.tensor(patch_size).to(device)
-        self.refractive_idcs = torch.tensor(refractive_idcs).to(device)
-        self.height_tolerance = torch.tensor(height_tolerance).to(device)
-        self.block_size = torch.tensor(block_size).to(device)
+        self.wave_res = torch.tensor(wave_resolution).to("cuda:6")
+        self.wave_lengths = torch.tensor(wave_lengths).to("cuda:6")
+        self.sensor_distance = torch.tensor(sensor_distance).to("cuda:6")
+        self.sample_interval = torch.tensor(sample_interval).to("cuda:6")
+        self.patch_size = torch.tensor(patch_size).to("cuda:6")
+        self.refractive_idcs = torch.tensor(refractive_idcs).to("cuda:6")
+        self.height_tolerance = torch.tensor(height_tolerance).to("cuda:6")
+        self.block_size = torch.tensor(block_size).to("cuda:6")
 
         # trainable height map
         height_map_shape = [1, 1, self.wave_res[0] // block_size, self.wave_res[1] // block_size]
         # self.height_map = self.height_map_initializer()
 
         # Input field is a planar wave.
-        self.input_field = torch.ones((1, len(self.wave_lengths), self.wave_res[0], self.wave_res[1])).to(device)
+        self.input_field = torch.ones((1, len(self.wave_lengths), self.wave_res[0], self.wave_res[1])).to("cuda:6")
 
         # Planar wave hits aperture: phase is shifted by phase plate
         self.heightMapElement = \

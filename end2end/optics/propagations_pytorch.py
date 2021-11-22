@@ -27,7 +27,7 @@ import torch.nn.functional as F
 
 
 class FresnelPropagation(torch.nn.Module):
-    def __init__(self, device, input_shape, distance, discretization_size, wave_lengths):
+    def __init__(self, input_shape, distance, discretization_size, wave_lengths):
         """
         :param input_shape:
         :param distance: z
@@ -57,8 +57,8 @@ class FresnelPropagation(torch.nn.Module):
         [x, y] = np.mgrid[-N // 2: N // 2, -M // 2: M // 2]
 
         # spatial frequency; max frequency = 1 / ( 2 * pixel_size)
-        fx = torch.tensor(x).to(device) / (self.discretization_size * N)
-        fy = torch.tensor(y).to(device) / (self.discretization_size * M)
+        fx = torch.tensor(x).to("cuda:6") / (self.discretization_size * N)
+        fy = torch.tensor(y).to("cuda:6") / (self.discretization_size * M)
 
         # rearranges a zero-frequency-shifted Fourier transform Y back to the original transform output
         fx = torch.fft.ifftshift(fx)
