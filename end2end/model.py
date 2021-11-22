@@ -4,6 +4,7 @@ import numpy as np
 import end2end.optics.elements_pytorch as elements
 import end2end.optics.propagations_pytorch as propagations
 import end2end.optics.optics_utils as optics_utils
+from config import CUDA_DEVICE
 
 
 class RGBCollimator(nn.Module):
@@ -13,21 +14,21 @@ class RGBCollimator(nn.Module):
                  wave_resolution, height_tolerance, block_size=1):
         super(RGBCollimator, self).__init__()
 
-        self.wave_res = torch.tensor(wave_resolution).to("cuda:6")
-        self.wave_lengths = torch.tensor(wave_lengths).to("cuda:6")
-        self.sensor_distance = torch.tensor(sensor_distance).to("cuda:6")
-        self.sample_interval = torch.tensor(sample_interval).to("cuda:6")
-        self.patch_size = torch.tensor(patch_size).to("cuda:6")
-        self.refractive_idcs = torch.tensor(refractive_idcs).to("cuda:6")
-        self.height_tolerance = torch.tensor(height_tolerance).to("cuda:6")
-        self.block_size = torch.tensor(block_size).to("cuda:6")
+        self.wave_res = torch.tensor(wave_resolution).to(CUDA_DEVICE)
+        self.wave_lengths = torch.tensor(wave_lengths).to(CUDA_DEVICE)
+        self.sensor_distance = torch.tensor(sensor_distance).to(CUDA_DEVICE)
+        self.sample_interval = torch.tensor(sample_interval).to(CUDA_DEVICE)
+        self.patch_size = torch.tensor(patch_size).to(CUDA_DEVICE)
+        self.refractive_idcs = torch.tensor(refractive_idcs).to(CUDA_DEVICE)
+        self.height_tolerance = torch.tensor(height_tolerance).to(CUDA_DEVICE)
+        self.block_size = torch.tensor(block_size).to(CUDA_DEVICE)
 
         # trainable height map
         height_map_shape = [1, 1, self.wave_res[0] // block_size, self.wave_res[1] // block_size]
         # self.height_map = self.height_map_initializer()
 
         # Input field is a planar wave.
-        self.input_field = torch.ones((1, len(self.wave_lengths), self.wave_res[0], self.wave_res[1])).to("cuda:6")
+        self.input_field = torch.ones((1, len(self.wave_lengths), self.wave_res[0], self.wave_res[1])).to(CUDA_DEVICE)
 
         # Planar wave hits aperture: phase is shifted by phase plate
         self.heightMapElement = \
@@ -71,7 +72,7 @@ class RGBCollimator(nn.Module):
 
         # add sensor noise
         # FIXME
-        rand_sigma = torch.tensor((.02 - .001) * torch.rand(1) + 0.001).cuda()  # standard deviation drawn from uni dist
+        rand_sigma = torch.tensor((.02 - .001) * torch.rand(1) + 0.001).to(CUDA_DEVICE)  # standard deviation drawn from uni dist
         # add gaussian noise
         output_image += torch.normal(mean=torch.zeros_like(output_image),
                                      std=torch.ones_like(output_image) * rand_sigma)

@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 import end2end.optics.optics_utils as optics_utils
+from config import CUDA_DEVICE
 
 
 class CircularAperture(torch.nn.Module):
@@ -25,7 +26,7 @@ class CircularAperture(torch.nn.Module):
         # aperture = (r < max_val).astype(np.float64)  # Why cast like this?
         aperture = (r < max_val)
         aperture = np.concatenate((aperture, aperture, aperture), axis=1)
-        return torch.tensor(aperture).cuda() * input_field
+        return torch.tensor(aperture).to(CUDA_DEVICE) * input_field
         # return input_field[aperture == 0 ] =
 
 

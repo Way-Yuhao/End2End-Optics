@@ -3,10 +3,10 @@ __author__ = "Yuhao Liu", "Krish Kabra"
 
 import torch
 import torch.nn.functional as F
-
 import numpy as np
 import math
 import poppy
+from config import CUDA_DEVICE
 
 
 def get_zernike_volume(resolution, n_terms, scale_factor=1e-6):
@@ -184,10 +184,10 @@ def laplace_l1_regularizer(img_batch, scale):  # FIXME: call signature differs f
 
 
 def laplacian_filter_pytorch(img_batch):
-    laplacian_filter = torch.tensor([[1, 1, 1], [1, -8, 1], [1, 1, 1]], dtype=torch.float32).cuda()
+    laplacian_filter = torch.tensor([[1, 1, 1], [1, -8, 1], [1, 1, 1]], dtype=torch.float32).to(CUDA_DEVICE)
     laplacian_filter = torch.reshape(laplacian_filter, (1, 1, 3, 3))  # pytorch specific
 
-    filter_input = img_batch.type(torch.float32).cuda()
+    filter_input = img_batch.type(torch.float32).to(CUDA_DEVICE)
     # may heave to make sure require_grad is false
     filtered_batch = F.conv2d(filter_input, laplacian_filter, padding="same")
     return filtered_batch
