@@ -121,24 +121,22 @@ def train_dev(net, device, tb, load_weights=False, pre_trained_params_path=None)
     optimizer = optim.SGD(net.parameters(), lr=init_lr, momentum=.5)
     # scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[500, 1000, 1500], gamma=.8)
 
-    running_train_loss = 0.0
+    running_train_loss = 0.0 # per epoch
     # training loop
     for ep in range(epoch):
         print("Epoch ", ep)
         train_iter = iter(train_loader)
 
-        for _ in tqdm(range(num_mini_batches)):
+        for i in tqdm(range(num_mini_batches)):
             input_, depth = train_iter.next()
             input_, depth = input_.to(CUDA_DEVICE), depth.to(CUDA_DEVICE)
             optimizer.zero_grad()
             output, psf = net(input_)
-
-            # disp_plt(output[0, :, :, :], title="output", idx=0)
-            # disp_plt(psf[0, :, :, :]/psf.max(), title="psf, max = {}".format(psf.max()), idx=0)
-            # plt.show()
-
-
             loss = compute_loss(output=output, target=input_, heightmap=net.heightMapElement.height_map)
+
+            tb.add_scalar('loss/train/micro', loss.item(), ep * num_mini_batches + i)
+            tb.add_image('normalized_psf', psf[0, :, :, :] / psf.max(), global_step=ep * num_mini_batches + i)
+
             loss.backward()
             optimizer.step()
             running_train_loss += loss.item()
@@ -161,7 +159,7 @@ def train_dev(net, device, tb, load_weights=False, pre_trained_params_path=None)
 
 def main():
     global version
-    version = "-v0.5"
+    version = "-v0.5.2"
     param_to_load = None
     tb = SummaryWriter('./runs/RGBCollimator' + version)
     net = RGBCollimator(sensor_distance=sensor_distance, refractive_idcs=refractive_idcs, wave_lengths=wave_lengths,
