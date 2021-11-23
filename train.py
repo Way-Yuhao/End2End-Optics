@@ -2,6 +2,7 @@ import cv2
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import torch.nn.functional as F
 import torchvision.utils
 from torch.utils.tensorboard import SummaryWriter
 import numpy as np
@@ -12,7 +13,7 @@ from matplotlib import pyplot as plt
 from config import CUDA_DEVICE
 import end2end.optics.optics_utils
 from end2end.edof_reader import ImageFolder
-from end2end.model import RGBCollimator
+from end2end.model import RGBCollimator, RGBCollimator_Fourier
 
 """Global Parameters"""
 div2k_dataset_path = "/mnt/data1/yl241/datasets/Div2K/"
@@ -21,7 +22,7 @@ num_workers_train = 8
 batch_size = 8
 
 """Hyper Parameters"""
-init_lr = 5e-3
+init_lr = 5e-1
 epoch = 2000
 
 """Simulation Parameters"""
@@ -140,14 +141,19 @@ def train_dev(net, device, tb, load_weights=False, pre_trained_params_path=None)
             running_train_loss += loss.item()
             torch.cuda.empty_cache()
 
+        # print(height_map.shape)
+        # raise Exception
+
         # record loss values after each epoch
         print(running_train_loss)
         cur_train_loss = running_train_loss / num_mini_batches
         tb.add_scalar('loss/train', cur_train_loss, ep)
-        tb.add_image('normalized_psf', psf[0, :, :, :] / psf.max(), global_step=ep)
-        tb.add_image('normalized_height_map', height_map[0, :, :, :] / height_map.max(), global_step=ep)
-        output_img_grid = torchvision.utils.make_grid(output)
-        tb.add_image("train_outputs", output_img_grid, global_step=ep)
+        if ep % 10 == 0:
+            tb.add_image('normalized_psf', psf[0, :, :, :] / psf.max(), global_step=ep)
+            # tb.add_image('normalized_height_map', F.interpolate((height_map / height_map.max()).detach().cpu(), scale_factor=(4, 4))[0, :, :, :], global_step=ep)
+            tb.add_image('normalized_height_map', height_map[0, :, ::4, ::4] / height_map.max(), global_step=ep)
+            output_img_grid = torchvision.utils.make_grid(output)
+            tb.add_image("train_outputs", output_img_grid, global_step=ep)
         # TODO: dev
 
         running_train_loss = 0.0
@@ -160,10 +166,14 @@ def train_dev(net, device, tb, load_weights=False, pre_trained_params_path=None)
 
 def main():
     global version
-    version = "-v0.5.12"
+    version = "-v1.0.4"
     param_to_load = None
     tb = SummaryWriter('./runs/RGBCollimator' + version)
-    net = RGBCollimator(sensor_distance=sensor_distance, refractive_idcs=refractive_idcs, wave_lengths=wave_lengths,
+    # net = RGBCollimator(sensor_distance=sensor_distance, refractive_idcs=refractive_idcs, wave_lengths=wave_lengths,
+    #                     patch_size=patch_size, sample_interval=sample_interval, wave_resolution=wave_resolution,
+    #                     height_tolerance=height_tolerance)
+
+    net = RGBCollimator_Fourier(sensor_distance=sensor_distance, refractive_idcs=refractive_idcs, wave_lengths=wave_lengths,
                         patch_size=patch_size, sample_interval=sample_interval, wave_resolution=wave_resolution,
                         height_tolerance=height_tolerance)
 

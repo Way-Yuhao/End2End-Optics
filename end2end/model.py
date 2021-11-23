@@ -151,4 +151,4 @@ class RGBCollimator_Fourier(nn.Module):
         output_image += torch.normal(mean=torch.zeros_like(output_image),
                                      std=torch.ones_like(output_image) * rand_sigma)
 
-        return output_image, psfs
+        return output_image, psfs, self.heightMapElement.height_map
