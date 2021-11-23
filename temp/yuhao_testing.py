@@ -22,26 +22,8 @@ class M(torch.nn.Module):
 
 
 def main():
-    tb = SummaryWriter('../runs/test' + "-v0.0")  # TODO rename this
-    print(os.getcwd())
-    print(os.path.exists("./sample_psf.pt"))
-    psf = torch.load("./sample_psf.pt")  # [1, 3, 512, 512]
-    print(psf.shape)
-    psf_plot = torch.sum(psf, dim=2)
-    print("sum of psf = {}".format(torch.sum(psf)))
-    print(psf_plot.shape)  # shape [1, 3, 512]
-
-    psf_plot = psf_plot.cpu().detach().numpy()
-    print(psf_plot.shape)
-    fig, ax = plt.subplots()
-    ax.plot(psf_plot[0, 0, :], c='r')
-    ax.plot(psf_plot[0, 1, :], c='g')
-    ax.plot(psf_plot[0, 2, :], c='b')
-    # plt.show()
-    tb.add_figure(tag="1D_psf", figure=fig, global_step=1)
-    tb.add_figure(tag="1D_psf", figure=fig, global_step=2)
-    tb.close()
-
+    a = 1.12345
+    print("{:.2}".format(a))
 
 if __name__ == "__main__":
     main()
