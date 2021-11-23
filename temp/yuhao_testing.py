@@ -4,6 +4,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from yuhao_testing2 import multiply
+from config import CUDA_DEVICE
 
 class M(torch.nn.Module):
     def __init__(self):
@@ -12,17 +13,13 @@ class M(torch.nn.Module):
 
     def forward(self, x):
         # return x * torch.tensor([2])
-        wtf = self.a + torch.nn.Parameter(torch.tensor([2.]).cuda())
+        wtf = self.a + torch.nn.Parameter(torch.tensor([2.]).to(CUDA_DEVICE))
         return multiply(x, self.a)
 
 
 def main():
-    m = M()
-    m.to("cuda:6")
-    input = torch.tensor(4).to("cuda:6")
-    with torch.cuda.device("cuda:6"):
-        out = m(input)
-    print(out)
+    print(torch.cuda.device_count())
+    print(CUDA_DEVICE)
 
 
 if __name__ == "__main__":

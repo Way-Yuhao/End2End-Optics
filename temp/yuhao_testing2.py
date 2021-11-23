@@ -5,6 +5,7 @@ import os
 from end2end.edof_reader import ImageFolder
 from tqdm import tqdm
 from matplotlib import pyplot as plt
+from config import CUDA_DEVICE
 
 dataset_path = "/mnt/data1/yl241/datasets/Div2K/train/"
 version = "v0"
@@ -61,7 +62,7 @@ def train_dev():
 
 
 def multiply(a, b):
-    c = torch.tensor([4]).cuda()
+    c = torch.tensor([4]).to(CUDA_DEVICE)
     return a * b + c
 
 

@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 import torch.nn.functional as F
+from config import CUDA_DEVICE
 
 # class Propagation(torch.nn.Module):
 #     def __init__(self, input_shape, distance, discretization_size, wave_lengths):
@@ -57,8 +58,8 @@ class FresnelPropagation(torch.nn.Module):
         [x, y] = np.mgrid[-N // 2: N // 2, -M // 2: M // 2]
 
         # spatial frequency; max frequency = 1 / ( 2 * pixel_size)
-        fx = torch.tensor(x).to("cuda:6") / (self.discretization_size * N)
-        fy = torch.tensor(y).to("cuda:6") / (self.discretization_size * M)
+        fx = torch.tensor(x).to(CUDA_DEVICE) / (self.discretization_size * N)
+        fy = torch.tensor(y).to(CUDA_DEVICE) / (self.discretization_size * M)
 
         # rearranges a zero-frequency-shifted Fourier transform Y back to the original transform output
         fx = torch.fft.ifftshift(fx)
@@ -73,6 +74,7 @@ class FresnelPropagation(torch.nn.Module):
         # complex_exponent_part = -1. * np.pi * self.wave_lengths * squared_sum * self.distance
         # complex_exponent_part = -1. * np.pi * self.wave_lengths * torch.concat((squared_sum, squared_sum, squared_sum), dim=1) * self.distance
         complex_exponent_part = -1. * np.pi * self.wave_lengths.reshape(1, 3, 1, 1) * torch.concat((squared_sum, squared_sum, squared_sum), dim=1) * self.distance
+        # complex_exponent_part = 2 * np.pi * self.distance * (1/self.wave_lengths).reshape(1, 3, 1, 1) - complex_exponent_part
         # complex_exponent_part = 2 * np.pi * self.distance * (1/self.wave_lengths) - 1. * np.pi * self.wave_lengths * squared_sum * self.distance # should it be this????
 
         H = torch.exp(torch.complex(torch.zeros_like(complex_exponent_part), complex_exponent_part))
