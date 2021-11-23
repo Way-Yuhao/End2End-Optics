@@ -151,7 +151,7 @@ class FourierElement(nn.Module):
         return nn.parameter.Parameter(fourier_coeffs_reals, requires_grad=True), \
             nn.parameter.Parameter(fourier_coeffs_complex, requires_grad=True)
 
-    def foward(self, x):
+    def forward(self, x):
         """
         :param x: input_field (Tensor[batch_size, num_wavelengths, height, width]), complex valued wavefront
         :return: input field shifted by phase plate

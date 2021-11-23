@@ -75,6 +75,7 @@ class RGBCollimator(nn.Module):
 
         return output_image, psfs, self.heightMapElement.height_map
 
+
 class RGBCollimator_Fourier(nn.Module):
     """Section 3.2 simple lens check"""
 
