@@ -1,4 +1,5 @@
 import cv2
+import io
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -108,7 +109,26 @@ def disp_plt(img, title="", idx=None):
     return
 
 
-def train_dev(net, device, tb, load_weights=False, pre_trained_params_path=None):
+def tensorboard_vis(tb, ep, psf=None, height_map=None, train_output=None, plt_1d_psf=True):
+    if psf is not None:
+        tb.add_image('normalized_psf', psf[0, :, :, :] / psf.max(), global_step=ep)
+    if height_map is not None:
+        tb.add_image('normalized_height_map', height_map[0, :, ::4, ::4] / height_map.max(), global_step=ep)
+    if train_output is not None:
+        output_img_grid = torchvision.utils.make_grid(train_output)
+        tb.add_image("train_outputs", output_img_grid, global_step=ep)
+    if plt_1d_psf:
+        psf_plot = torch.sum(psf, dim=2)
+        psf_plot = psf_plot.cpu().detach().numpy()
+        fig, ax = plt.subplots()
+        ax.plot(psf_plot[0, 0, :], c='r')
+        ax.plot(psf_plot[0, 1, :], c='g')
+        ax.plot(psf_plot[0, 2, :], c='b')
+        tb.add_figure(tag="1D_psf", figure=fig, global_step=ep)
+    return
+
+
+def train_dev(net, tb, load_weights=False, pre_trained_params_path=None):
     print_params()
     net.to(CUDA_DEVICE)
     net.train()
@@ -123,39 +143,31 @@ def train_dev(net, device, tb, load_weights=False, pre_trained_params_path=None)
     # scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[500, 1000, 1500], gamma=.8)
 
     running_train_loss = 0.0  # per epoch
+    psf, height_map, output = None, None, None
     # training loop
     for ep in range(epoch):
         print("Epoch ", ep)
         train_iter = iter(train_loader)
-        psf, height_map = None, None
         for i in tqdm(range(num_mini_batches)):
             input_, depth = train_iter.next()
             input_, depth = input_.to(CUDA_DEVICE), depth.to(CUDA_DEVICE)
             optimizer.zero_grad()
             output, psf, height_map = net(input_)
             loss = compute_loss(output=output, target=input_, heightmap=net.heightMapElement.height_map)
-
-            tb.add_scalar('loss/train_micro', loss.item(), ep * num_mini_batches + i)
             loss.backward()
             optimizer.step()
             running_train_loss += loss.item()
-            torch.cuda.empty_cache()
-
-        # print(height_map.shape)
-        # raise Exception
+            # torch.cuda.empty_cache()
 
         # record loss values after each epoch
         print(running_train_loss)
         cur_train_loss = running_train_loss / num_mini_batches
         tb.add_scalar('loss/train', cur_train_loss, ep)
-        if ep % 10 == 0:
-            tb.add_image('normalized_psf', psf[0, :, :, :] / psf.max(), global_step=ep)
-            # tb.add_image('normalized_height_map', F.interpolate((height_map / height_map.max()).detach().cpu(), scale_factor=(4, 4))[0, :, :, :], global_step=ep)
-            tb.add_image('normalized_height_map', height_map[0, :, ::4, ::4] / height_map.max(), global_step=ep)
-            output_img_grid = torchvision.utils.make_grid(output)
-            tb.add_image("train_outputs", output_img_grid, global_step=ep)
-        # TODO: dev
+        if ep % 10 == 9:
+            tensorboard_vis(tb, ep, psf=psf, height_map=height_map, train_output=output, plt_1d_psf=True)
+            raise Exception()
 
+        # TODO: dev
         running_train_loss = 0.0
         # scheduler.step()
 
@@ -166,32 +178,20 @@ def train_dev(net, device, tb, load_weights=False, pre_trained_params_path=None)
 
 def main():
     global version
-    version = "-v1.0.4"
+    version = "-v1.0.5-test"
     param_to_load = None
-    tb = SummaryWriter('./runs/RGBCollimator' + version)
+    tb = SummaryWriter('./runs/RGBCollimator' + version)  # TODO rename this
+    # simple lens
     # net = RGBCollimator(sensor_distance=sensor_distance, refractive_idcs=refractive_idcs, wave_lengths=wave_lengths,
     #                     patch_size=patch_size, sample_interval=sample_interval, wave_resolution=wave_resolution,
     #                     height_tolerance=height_tolerance)
 
+    # Fourier system
     net = RGBCollimator_Fourier(sensor_distance=sensor_distance, refractive_idcs=refractive_idcs, wave_lengths=wave_lengths,
                         patch_size=patch_size, sample_interval=sample_interval, wave_resolution=wave_resolution,
                         height_tolerance=height_tolerance)
 
-    # print("there are {} params".format(len(net.parameters())))
-    # print("there are {} named params".format(len(net.named_parameters())))
-    # print("=====================")
-    # for name, param in net.named_parameters():
-    #     print(name)
-    #
-    # print("================")
-    # i = 0
-    # for param in net.parameters():
-    #     print(i)
-    #     i += 1
-    # raise Exception()
-
-    train_dev(net, CUDA_DEVICE, tb, load_weights=False, pre_trained_params_path=param_to_load)
-
+    train_dev(net, tb, load_weights=False, pre_trained_params_path=param_to_load)
     tb.close()
 
 
