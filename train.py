@@ -18,6 +18,8 @@ from end2end.model import RGBCollimator, RGBCollimator_Fourier
 
 """Global Parameters"""
 div2k_dataset_path = "/mnt/data1/yl241/datasets/Div2K/"
+network_weight_path = "./weight/"
+model_name = None
 version = None
 num_workers_train = 8
 batch_size = 8
@@ -49,6 +51,9 @@ def load_data(dataset_path):
     return data_loader
 
 
+
+
+
 def print_params():
     print("######## Basics ##################")
     print("version: {}".format(version))
@@ -59,8 +64,11 @@ def load_network_weights(net, path):
     raise NotImplementedError
 
 
-def save_network_weights(net, ep):
-    raise NotImplementedError
+def save_network_weights(net, ep=None):
+    filename = network_weight_path + "{}{}_epoch_{}.pth".format(model_name, version, ep)
+    torch.save(net.state_dict(), filename)
+    print("network weights saved to ", filename)
+    return
 
 
 def compute_loss(output, target, heightmap):
@@ -163,9 +171,9 @@ def train_dev(net, tb, load_weights=False, pre_trained_params_path=None):
         print(running_train_loss)
         cur_train_loss = running_train_loss / num_mini_batches
         tb.add_scalar('loss/train', cur_train_loss, ep)
-        if ep % 10 == 9:
+        if ep % 10 == 0:
             tensorboard_vis(tb, ep, psf=psf, height_map=height_map, train_output=output, plt_1d_psf=True)
-            raise Exception()
+            save_network_weights(net, ep)
 
         # TODO: dev
         running_train_loss = 0.0
@@ -177,10 +185,11 @@ def train_dev(net, tb, load_weights=False, pre_trained_params_path=None):
 
 
 def main():
-    global version
+    global version, model_name
+    model_name = "RGBCollimator_Fourier"
     version = "-v1.0.5-test"
     param_to_load = None
-    tb = SummaryWriter('./runs/RGBCollimator' + version)  # TODO rename this
+    tb = SummaryWriter('./runs/' + model_name + version)
     # simple lens
     # net = RGBCollimator(sensor_distance=sensor_distance, refractive_idcs=refractive_idcs, wave_lengths=wave_lengths,
     #                     patch_size=patch_size, sample_interval=sample_interval, wave_resolution=wave_resolution,
