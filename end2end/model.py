@@ -46,10 +46,6 @@ class RGBCollimator(nn.Module):
         self.circularAperture.requires_grad_(False)
         self.fresnelPropagation.requires_grad_(False)
 
-    # def height_map_initializer(self):
-    #     height_map = torch.full(self.height_map_shape, 1e-4, dtype=torch.float64)
-    #     return nn.parameter.Parameter(height_map, requires_grad=True)
-
     def forward(self, x):
         """
         :param x: input image
@@ -64,17 +60,16 @@ class RGBCollimator(nn.Module):
         # Downsample psf to image resolution & normalize to sum to 1
         psfs = optics_utils.area_down_sampling(psfs, self.patch_size)
         psfs = torch.div(psfs, torch.sum(psfs, dim=(2, 3), keepdim=True))
-        # optics.attach_summaries('PSF', psfs, image=True, log_image=True) TODO
 
         # Image formation: PSF is convolved with input image
         output_image = optics_utils.img_psf_conv(x, psfs).type(torch.float32)
-        # optics.attach_summaries('output_image', output_image, image=True, log_image=False) TODO
 
         # add sensor noise
         # FIXME
-        rand_sigma = torch.tensor((.02 - .001) * torch.rand(1) + 0.001).to(CUDA_DEVICE)  # standard deviation drawn from uni dist
+        # standard deviation drawn from uni dist
+        rand_sigma = torch.tensor((.02 - .001) * torch.rand(1) + 0.001).to(CUDA_DEVICE)
         # add gaussian noise
         output_image += torch.normal(mean=torch.zeros_like(output_image),
                                      std=torch.ones_like(output_image) * rand_sigma)
 
-        return output_image, psfs
+        return output_image, psfs, self.heightMapElement.height_map

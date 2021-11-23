@@ -2,6 +2,7 @@ import cv2
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import torchvision.utils
 from torch.utils.tensorboard import SummaryWriter
 import numpy as np
 import os
@@ -20,7 +21,7 @@ num_workers_train = 8
 batch_size = 8
 
 """Hyper Parameters"""
-init_lr = 1e-4
+init_lr = 5e-3
 epoch = 2000
 
 """Simulation Parameters"""
@@ -30,7 +31,7 @@ refractive_idcs = np.array([1.4648, 1.4599, 1.4568])  # Refractive idcs of the p
 wave_lengths = np.array([460, 550, 640]) * 1e-9  # Wave lengths to be modeled and optimized for
 # wave_lengths = np.array([550, 550, 550]) * 1e-9  # monochrome
 ckpt_path = None
-num_steps = 10001  # Number of SGD steps
+num_steps = 10001  # Number of SGD steps FIXME not used
 patch_size = 512  # Size of patches to be extracted from images, and resolution of simulated sensor
 sample_interval = 2e-6  # Sampling interval (size of one "pixel" in the simulated wavefront)
 wave_resolution = 2496, 2496  # Resolution of the simulated wavefront
@@ -117,26 +118,23 @@ def train_dev(net, device, tb, load_weights=False, pre_trained_params_path=None)
     train_loader = load_data(p.join(div2k_dataset_path, "small_50"))
 
     num_mini_batches = len(train_loader)
-    # TODO: modify this
     optimizer = optim.SGD(net.parameters(), lr=init_lr, momentum=.5)
     # scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[500, 1000, 1500], gamma=.8)
 
-    running_train_loss = 0.0 # per epoch
+    running_train_loss = 0.0  # per epoch
     # training loop
     for ep in range(epoch):
         print("Epoch ", ep)
         train_iter = iter(train_loader)
-
+        psf, height_map = None, None
         for i in tqdm(range(num_mini_batches)):
             input_, depth = train_iter.next()
             input_, depth = input_.to(CUDA_DEVICE), depth.to(CUDA_DEVICE)
             optimizer.zero_grad()
-            output, psf = net(input_)
+            output, psf, height_map = net(input_)
             loss = compute_loss(output=output, target=input_, heightmap=net.heightMapElement.height_map)
 
-            tb.add_scalar('loss/train/micro', loss.item(), ep * num_mini_batches + i)
-            tb.add_image('normalized_psf', psf[0, :, :, :] / psf.max(), global_step=ep * num_mini_batches + i)
-
+            tb.add_scalar('loss/train_micro', loss.item(), ep * num_mini_batches + i)
             loss.backward()
             optimizer.step()
             running_train_loss += loss.item()
@@ -146,11 +144,14 @@ def train_dev(net, device, tb, load_weights=False, pre_trained_params_path=None)
         print(running_train_loss)
         cur_train_loss = running_train_loss / num_mini_batches
         tb.add_scalar('loss/train', cur_train_loss, ep)
+        tb.add_image('normalized_psf', psf[0, :, :, :] / psf.max(), global_step=ep)
+        tb.add_image('normalized_height_map', height_map[0, :, :, :] / height_map.max(), global_step=ep)
+        output_img_grid = torchvision.utils.make_grid(output)
+        tb.add_image("train_outputs", output_img_grid, global_step=ep)
         # TODO: dev
 
         running_train_loss = 0.0
         # scheduler.step()
-        # TODO: display samples per some epochs
 
     print("finished training")
     save_network_weights(net, ep="{}_FINAL".format(epoch))
@@ -159,14 +160,27 @@ def train_dev(net, device, tb, load_weights=False, pre_trained_params_path=None)
 
 def main():
     global version
-    version = "-v0.5.2"
+    version = "-v0.5.12"
     param_to_load = None
     tb = SummaryWriter('./runs/RGBCollimator' + version)
     net = RGBCollimator(sensor_distance=sensor_distance, refractive_idcs=refractive_idcs, wave_lengths=wave_lengths,
                         patch_size=patch_size, sample_interval=sample_interval, wave_resolution=wave_resolution,
                         height_tolerance=height_tolerance)
-    with torch.cuda.device(CUDA_DEVICE):
-        train_dev(net, CUDA_DEVICE, tb, load_weights=False, pre_trained_params_path=param_to_load)
+
+    # print("there are {} params".format(len(net.parameters())))
+    # print("there are {} named params".format(len(net.named_parameters())))
+    # print("=====================")
+    # for name, param in net.named_parameters():
+    #     print(name)
+    #
+    # print("================")
+    # i = 0
+    # for param in net.parameters():
+    #     print(i)
+    #     i += 1
+    # raise Exception()
+
+    train_dev(net, CUDA_DEVICE, tb, load_weights=False, pre_trained_params_path=param_to_load)
 
     tb.close()
 
