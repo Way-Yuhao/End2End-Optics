@@ -4,6 +4,7 @@ import numpy as np
 import end2end.optics.elements_pytorch as elements
 import end2end.optics.propagations_pytorch as propagations
 import end2end.optics.optics_utils as optics_utils
+import end2end.decoder.decovn as decovn
 from config import CUDA_DEVICE
 
 
@@ -156,7 +157,7 @@ class RGBCollimator_Fourier(nn.Module):
 
 class AchromaticEdofFourier(nn.Module):
     def __init__(self, sensor_distance, refractive_idcs, wave_lengths, patch_size, sample_interval,
-                 wave_resolution, height_tolerance, frequency_range=0.5, block_size=1):
+                 wave_resolution, height_tolerance, frequency_range=0.5, block_size=1, init_gamma=1.5):
         super(AchromaticEdofFourier, self).__init__()
 
         self.wave_res = torch.tensor(wave_resolution).to(CUDA_DEVICE)
@@ -169,6 +170,7 @@ class AchromaticEdofFourier(nn.Module):
         self.block_size = torch.tensor(block_size).to(CUDA_DEVICE)
         self.physical_size = self.wave_res[0] * self.sample_interval
         self.pixel_size = self.sample_interval * self.wave_res[0] / self.patch_size
+        self.init_gamma = init_gamma
 
         print("Physical size is %0.2e.\nWave resolution is %d." % (self.physical_size, self.wave_res[0]))
 
@@ -190,6 +192,9 @@ class AchromaticEdofFourier(nn.Module):
                                             discretization_size=self.sample_interval,
                                             wave_lengths=self.wave_lengths)
 
+        # Deconvolve image using inverse filter
+        self.inverseFilter = decovn.InverseFilter(init_gamma=self.init_gamma)
+
         # TODO: verify this
         self.circularAperture.requires_grad_(False)
         self.fresnelPropagation.requires_grad_(False)
@@ -209,6 +214,10 @@ class AchromaticEdofFourier(nn.Module):
         xx = torch.linspace(-self.wave_res[0] // 2, self.wave_res[0] // 2, self.wave_res[0])
         yy = torch.linspace(-self.wave_res[1] // 2, self.wave_res[1] // 2, self.wave_res[1])
         grid_x, grid_y = torch.meshgrid(xx, yy)
+
+        grid_x = grid_x / self.wave_res[0] * self.physical_size
+        grid_y = grid_y / self.wave_res[1] * self.physical_size
+
         squared_sum = torch.unsqueeze(torch.unsqueeze(grid_x ** 2 + grid_y ** 2, 0), 0) # FIXME: is this best way of ading dims?
         curvature = torch.sqrt(squared_sum + depth_map ** 2)
         input_field = torch.exp(torch.complex(torch.zeros_like(curvature), curvature))
@@ -236,5 +245,8 @@ class AchromaticEdofFourier(nn.Module):
         # add gaussian noise
         output_image += torch.normal(mean=torch.zeros_like(output_image),
                                      std=torch.ones_like(output_image) * rand_sigma)
+
+        # deconvolve noisy and blurry image
+        output_image = self.inverseFilter(output_image, output_image, psfs)
 
         return output_image, psfs

@@ -6,12 +6,12 @@ import end2end.optics.optics_utils as optics_utils
 from config import CUDA_DEVICE
 
 
-class inverse_filter(nn.Module):
+class InverseFilter(nn.Module):
     """
     Inverse filtering in the frequency domain.
     """
     def __init__(self, gamma=None, init_gamma=2.):
-        super(inverse_filter, self).__init__()
+        super(InverseFilter, self).__init__()
 
         self.init_gamma = init_gamma
         if gamma is None:
@@ -25,14 +25,26 @@ class inverse_filter(nn.Module):
         gamma = torch.square(gamma) # Enforces positivity of gamma.
         return nn.parameter.Parameter(gamma, requires_grad=True)
 
-    def forward(self, blurred_img, psfs):
+    def forward(self, blurred_img, estimated_img, psfs):
         """
         :param blurred_img: [m, c, x, y]
+        :param estimated_img: [m, c, x, y]
         :param psfs: [m, c, x, y]
         :return: deconvolved output image
         """
 
-        # img_fft = torch.fft.fft2(blurred_img)
-        # otf = optics_utils.psf2otf(psfs, output_size=blurred_img.shape[1:3])
+        img_fft = torch.fft.fft2(blurred_img)
+        otf = optics_utils.psf2otf(psfs, output_size=blurred_img.shape[1:3])
 
-        return NotImplementedError
+        # This is a slight modification to standard inverse filtering - gamma not only regularizes the inverse filtering,
+        # but also trades off between the regularized inverse filter and the unfiltered estimate_transp.
+        numerator = torch.conj(otf) * img_fft + torch.fft.fft2(torch.complex(self.gamma*estimated_img,
+                                                            torch.zeros_like(estimated_img)))
+        denominator = torch.complex(torch.square(torch.abs(otf)) + self.gamma,
+                                    torch.zeros_like(otf))
+
+        filtered = torch.div(numerator, denominator)
+
+        result = torch.fft.ifft2(filtered)
+
+        return torch.real(result)
