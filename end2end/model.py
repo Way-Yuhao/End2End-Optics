@@ -46,10 +46,6 @@ class RGBCollimator(nn.Module):
         self.circularAperture.requires_grad_(False)
         self.fresnelPropagation.requires_grad_(False)
 
-    # def height_map_initializer(self):
-    #     height_map = torch.full(self.height_map_shape, 1e-4, dtype=torch.float64)
-    #     return nn.parameter.Parameter(height_map, requires_grad=True)
-
     def forward(self, x):
         """
         :param x: input image
@@ -65,27 +61,27 @@ class RGBCollimator(nn.Module):
         # Downsample psf to image resolution & normalize to sum to 1
         psfs = optics_utils.area_down_sampling(psfs, self.patch_size)
         psfs = torch.div(psfs, torch.sum(psfs, dim=(2, 3), keepdim=True))
-        # optics.attach_summaries('PSF', psfs, image=True, log_image=True) TODO
 
         # Image formation: PSF is convolved with input image
         output_image = optics_utils.img_psf_conv(x, psfs).type(torch.float32)
-        # optics.attach_summaries('output_image', output_image, image=True, log_image=False) TODO
 
         # add sensor noise
         # FIXME
-        rand_sigma = torch.tensor((.02 - .001) * torch.rand(1) + 0.001).to(CUDA_DEVICE)  # standard deviation drawn from uni dist
+        # standard deviation drawn from uni dist
+        rand_sigma = torch.tensor((.02 - .001) * torch.rand(1) + 0.001).to(CUDA_DEVICE)
         # add gaussian noise
         output_image += torch.normal(mean=torch.zeros_like(output_image),
                                      std=torch.ones_like(output_image) * rand_sigma)
 
-        return output_image, psfs
+        return output_image, psfs, self.heightMapElement.height_map
 
-class RGBCollimatorFourier(nn.Module):
-    """Section 3.2 simple lens check with fourier coeffs"""
+
+class RGBCollimator_Fourier(nn.Module):
+    """Section 3.2 simple lens check"""
 
     def __init__(self, sensor_distance, refractive_idcs, wave_lengths, patch_size, sample_interval,
                  wave_resolution, height_tolerance, frequency_range=0.5, block_size=1):
-        super(RGBCollimatorFourier, self).__init__()
+        super(RGBCollimator_Fourier, self).__init__()
 
         self.wave_res = torch.tensor(wave_resolution).to(CUDA_DEVICE)
         self.wave_lengths = torch.tensor(wave_lengths).to(CUDA_DEVICE)
@@ -155,7 +151,7 @@ class RGBCollimatorFourier(nn.Module):
         output_image += torch.normal(mean=torch.zeros_like(output_image),
                                      std=torch.ones_like(output_image) * rand_sigma)
 
-        return output_image, psfs
+        return output_image, psfs, self.heightMapElement.height_map
 
 
 class AchromaticEdofFourier(nn.Module):

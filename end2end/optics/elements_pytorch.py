@@ -130,7 +130,7 @@ class FourierElement(nn.Module):
 
         super(FourierElement, self).__init__()
         self.height_map_shape = height_map_shape
-        self.fourier_coeff_shape = [1, 1, int(self.height_map_shape[2]*frequency_range), int(self.height_map_shape[3]*frequency_range)]
+        self.fourier_coeff_shape = [height_map_shape[0], height_map_shape[1], int(height_map_shape[2]*frequency_range), int(height_map_shape[3]*frequency_range)]
         self.frequency_range = frequency_range
         self.wave_lengths = wave_lengths
         self.refractive_idcs = refractive_idcs
@@ -141,6 +141,7 @@ class FourierElement(nn.Module):
         self.height_map = None
         self.phase_shifts = None
         self.height_map_noise = None
+        self.fourier_coeffs = None
 
         if self.height_tolerance is not None:
             print("Phase plate with manufacturing tolerance {:0.2e}".format(self.height_tolerance))
@@ -158,12 +159,12 @@ class FourierElement(nn.Module):
         """
         _, _, height, width = x.shape
 
-        fourier_coeffs = torch.complex(self.fourier_coeffs_reals, self.fourier_coeffs_complex)
-        fourier_coeffs_padded = F.pad(fourier_coeffs,
+        self.fourier_coeffs = torch.complex(self.fourier_coeffs_reals, self.fourier_coeffs_complex)
+        fourier_coeffs_padded = F.pad(self.fourier_coeffs,
                                       [self.padding_width, self.padding_width, self.padding_width, self.padding_width, 0, 0, 0, 0],
                                       mode='constant', value=0.0)
 
-        self.height_map = torch.real(torch.fft.ifft(torch.fft.ifftshift(fourier_coeffs_padded)))
+        self.height_map = torch.real(torch.fft.ifft2(torch.fft.ifftshift(fourier_coeffs_padded, dim=[2, 3])))
 
         # Add manufacturing tolerances in the form of height map noise
         if self.height_tolerance is not None:

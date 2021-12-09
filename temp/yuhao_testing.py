@@ -1,10 +1,14 @@
 """playground python file to test behavior of functions"""
+import os
 
 import numpy as np
 import torch
 import torch.nn.functional as F
 from yuhao_testing2 import multiply
 from config import CUDA_DEVICE
+from torch.utils.tensorboard import SummaryWriter
+from matplotlib import pyplot as plt
+
 
 class M(torch.nn.Module):
     def __init__(self):
@@ -18,9 +22,8 @@ class M(torch.nn.Module):
 
 
 def main():
-    print(torch.cuda.device_count())
-    print(CUDA_DEVICE)
-
+    a = 1.12345
+    print("{:.2}".format(a))
 
 if __name__ == "__main__":
     main()

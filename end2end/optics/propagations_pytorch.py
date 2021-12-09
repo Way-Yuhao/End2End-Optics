@@ -74,6 +74,7 @@ class FresnelPropagation(torch.nn.Module):
         # complex_exponent_part = -1. * np.pi * self.wave_lengths * squared_sum * self.distance
         # complex_exponent_part = -1. * np.pi * self.wave_lengths * torch.concat((squared_sum, squared_sum, squared_sum), dim=1) * self.distance
         complex_exponent_part = -1. * np.pi * self.wave_lengths.reshape(1, 3, 1, 1) * torch.concat((squared_sum, squared_sum, squared_sum), dim=1) * self.distance
+        # complex_exponent_part = 2 * np.pi * self.distance * (1/self.wave_lengths).reshape(1, 3, 1, 1) - complex_exponent_part
         # complex_exponent_part = 2 * np.pi * self.distance * (1/self.wave_lengths) - 1. * np.pi * self.wave_lengths * squared_sum * self.distance # should it be this????
 
         H = torch.exp(torch.complex(torch.zeros_like(complex_exponent_part), complex_exponent_part))

@@ -1,8 +1,7 @@
 import torch
 import torch.nn as nn
-import numpy as np
-import end2end.optics.elements_non_torch as elements
-import end2end.optics.propagations_non_torch as propagations
+import deprecated.elements_non_torch as elements
+import deprecated.propagations_non_torch as propagations
 import end2end.optics.optics_utils as optics_utils
 
 
