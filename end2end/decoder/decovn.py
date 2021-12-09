@@ -5,6 +5,7 @@ import numpy as np
 import end2end.optics.optics_utils as optics_utils
 from config import CUDA_DEVICE
 
+
 class inverse_filter(nn.Module):
     """
     Inverse filtering in the frequency domain.
