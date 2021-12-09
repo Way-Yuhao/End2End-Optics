@@ -80,12 +80,12 @@ class RGBCollimator(nn.Module):
 
         return output_image, psfs
 
-class RGBCollimator_Fourier(nn.Module):
-    """Section 3.2 simple lens check"""
+class RGBCollimatorFourier(nn.Module):
+    """Section 3.2 simple lens check with fourier coeffs"""
 
     def __init__(self, sensor_distance, refractive_idcs, wave_lengths, patch_size, sample_interval,
                  wave_resolution, height_tolerance, frequency_range=0.5, block_size=1):
-        super(RGBCollimator_Fourier, self).__init__()
+        super(RGBCollimatorFourier, self).__init__()
 
         self.wave_res = torch.tensor(wave_resolution).to(CUDA_DEVICE)
         self.wave_lengths = torch.tensor(wave_lengths).to(CUDA_DEVICE)
@@ -145,6 +145,92 @@ class RGBCollimator_Fourier(nn.Module):
 
         # Image formation: PSF is convolved with input image
         output_image = optics_utils.img_psf_conv(x, psfs).type(torch.float32)
+        # optics.attach_summaries('output_image', output_image, image=True, log_image=False) TODO
+
+        # add sensor noise
+        # FIXME
+        rand_sigma = torch.tensor((.02 - .001) * torch.rand(1) + 0.001).to(
+            CUDA_DEVICE)  # standard deviation drawn from uni dist
+        # add gaussian noise
+        output_image += torch.normal(mean=torch.zeros_like(output_image),
+                                     std=torch.ones_like(output_image) * rand_sigma)
+
+        return output_image, psfs
+
+
+class AchromaticEdofFourier(nn.Module):
+    def __init__(self, sensor_distance, refractive_idcs, wave_lengths, patch_size, sample_interval,
+                 wave_resolution, height_tolerance, frequency_range=0.5, block_size=1):
+        super(AchromaticEdofFourier, self).__init__()
+
+        self.wave_res = torch.tensor(wave_resolution).to(CUDA_DEVICE)
+        self.wave_lengths = torch.tensor(wave_lengths).to(CUDA_DEVICE)
+        self.sensor_distance = torch.tensor(sensor_distance).to(CUDA_DEVICE)
+        self.sample_interval = torch.tensor(sample_interval).to(CUDA_DEVICE)
+        self.patch_size = torch.tensor(patch_size).to(CUDA_DEVICE)
+        self.refractive_idcs = torch.tensor(refractive_idcs).to(CUDA_DEVICE)
+        self.height_tolerance = torch.tensor(height_tolerance).to(CUDA_DEVICE)
+        self.block_size = torch.tensor(block_size).to(CUDA_DEVICE)
+        self.physical_size = self.wave_res[0] * self.sample_interval
+        self.pixel_size = self.sample_interval * self.wave_res[0] / self.patch_size
+
+        print("Physical size is %0.2e.\nWave resolution is %d." % (self.physical_size, self.wave_res[0]))
+
+        # trainable height map
+        height_map_shape = [1, 1, self.wave_res[0] // block_size, self.wave_res[1] // block_size]
+        # self.height_map = self.height_map_initializer()
+
+        # Planar wave hits aperture: phase is shifted by phase plate
+        self.heightMapElement = \
+            elements.FourierElement(height_map_shape=height_map_shape, frequency_range=frequency_range,
+                                    wave_lengths=self.wave_lengths, height_tolerance=self.height_tolerance,
+                                    refractive_idcs=self.refractive_idcs)
+
+        self.circularAperture = elements.CircularAperture()
+
+        # Propagate field from aperture to sensor
+        self.fresnelPropagation = \
+            propagations.FresnelPropagation(input_shape=self.input_field.shape, distance=self.sensor_distance,
+                                            discretization_size=self.sample_interval,
+                                            wave_lengths=self.wave_lengths)
+
+        # TODO: verify this
+        self.circularAperture.requires_grad_(False)
+        self.fresnelPropagation.requires_grad_(False)
+
+    # def height_map_initializer(self):
+    #     height_map = torch.full(self.height_map_shape, 1e-4, dtype=torch.float64)
+    #     return nn.parameter.Parameter(height_map, requires_grad=True)
+
+    def forward(self, input_img, depth_map):
+        """
+        :param input_img: [m, c, x, y]
+        :param depth_map: [m, c, x, y]
+        :return: output image [m, c, x, y], psf [m, c, x, y]
+        """
+
+        # spherical wavefront based on target depth
+        xx = torch.linspace(-self.wave_res[0] // 2, self.wave_res[0] // 2, self.wave_res[0])
+        yy = torch.linspace(-self.wave_res[1] // 2, self.wave_res[1] // 2, self.wave_res[1])
+        grid_x, grid_y = torch.meshgrid(xx, yy)
+        squared_sum = torch.unsqueeze(torch.unsqueeze(grid_x ** 2 + grid_y ** 2, 0), 0) # FIXME: is this best way of ading dims?
+        curvature = torch.sqrt(squared_sum + depth_map ** 2)
+        input_field = torch.exp(torch.complex(torch.zeros_like(curvature), curvature))
+
+        field = self.heightMapElement(input_field)
+        field = self.circularAperture(field)
+        field = self.fresnelPropagation(field)
+
+        # The psf is the intensities of the propagated field.
+        psfs = optics_utils.get_intensities(field)
+
+        # Downsample psf to image resolution & normalize to sum to 1
+        psfs = optics_utils.area_down_sampling(psfs, self.patch_size)
+        psfs = torch.div(psfs, torch.sum(psfs, dim=(2, 3), keepdim=True))
+        # optics.attach_summaries('PSF', psfs, image=True, log_image=True) TODO
+
+        # Image formation: PSF is convolved with input image
+        output_image = optics_utils.img_psf_conv(input_img, psfs).type(torch.float32)
         # optics.attach_summaries('output_image', output_image, image=True, log_image=False) TODO
 
         # add sensor noise
