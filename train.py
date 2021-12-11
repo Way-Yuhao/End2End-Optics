@@ -202,7 +202,7 @@ def main():
     global version, model_name
     # model_name = "RGBCollimator_Fourier"
     model_name = "RGBCollimator"
-    version = "-v2.0.4-test2"
+    version = "-v2.0.5"
     # version = "-v1.1.2"
     param_to_load = None
     tb = SummaryWriter('./runs/' + model_name + version)
