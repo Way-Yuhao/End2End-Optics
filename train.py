@@ -11,7 +11,7 @@ import os
 import os.path as p
 from tqdm import tqdm
 from matplotlib import pyplot as plt
-from config import CUDA_DEVICE
+from end2end.config import CUDA_DEVICE
 import end2end.optics.optics_utils
 from end2end.edof_reader import ImageFolder
 from end2end.model import RGBCollimator, RGBCollimator_Fourier
@@ -113,7 +113,9 @@ def disp_plt(img, title="", idx=None):
 
 def tensorboard_vis(tb, ep, mode="train", psf=None, height_map=None, train_output=None, plt_1d_psf=True):
     if psf is not None:
-        tb.add_image('{}/normalized_psf'.format(mode), psf[0, :, :, :] / psf.max(), global_step=ep)
+        crop_transform = torchvision.transforms.CenterCrop(50)
+        cropped_psf = crop_transform(psf)
+        tb.add_image('{}/normalized_psf'.format(mode), cropped_psf[0, :, :, :] / psf.max(), global_step=ep)
     if height_map is not None:
         tb.add_image('{}/normalized_height_map'.format(mode), height_map[0, :, ::4, ::4] / height_map.max(), global_step=ep)
     if train_output is not None:
@@ -123,9 +125,9 @@ def tensorboard_vis(tb, ep, mode="train", psf=None, height_map=None, train_outpu
         psf_plot = torch.sum(psf, dim=2)
         psf_plot = psf_plot.cpu().detach().numpy()
         fig, ax = plt.subplots()
-        ax.plot(psf_plot[0, 0, :], c='r')
-        ax.plot(psf_plot[0, 1, :], c='g')
-        ax.plot(psf_plot[0, 2, :], c='b')
+        ax.plot(psf_plot[0, 0, 256-25:256+25], c='r')
+        ax.plot(psf_plot[0, 1, 256-25:256+25], c='g')
+        ax.plot(psf_plot[0, 2, 256-25:256+25], c='b')
         tb.add_figure(tag="{}/1D_psf".format(mode), figure=fig, global_step=ep)
     return
 
@@ -194,7 +196,7 @@ def main():
     global version, model_name
     # model_name = "RGBCollimator_Fourier"
     model_name = "RGBCollimator"
-    version = "-v2.0.3"
+    version = "-v2.0.4-test"
     # version = "-v1.1.2"
     param_to_load = None
     tb = SummaryWriter('./runs/' + model_name + version)

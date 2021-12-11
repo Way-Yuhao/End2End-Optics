@@ -6,7 +6,7 @@ import torch.nn.functional as F
 import numpy as np
 import math
 import poppy
-from config import CUDA_DEVICE
+from end2end.config import CUDA_DEVICE
 
 
 def get_zernike_volume(resolution, n_terms, scale_factor=1e-6):
