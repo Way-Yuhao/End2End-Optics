@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 import end2end.optics.optics_utils as optics_utils
-from config import CUDA_DEVICE
+from end2end.config import CUDA_DEVICE
 
 
 class CircularAperture(nn.Module):

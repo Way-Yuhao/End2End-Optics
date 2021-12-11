@@ -4,7 +4,7 @@ import numpy as np
 import end2end.optics.elements_pytorch as elements
 import end2end.optics.propagations_pytorch as propagations
 import end2end.optics.optics_utils as optics_utils
-from config import CUDA_DEVICE
+from end2end.config import CUDA_DEVICE
 
 
 class RGBCollimator(nn.Module):
