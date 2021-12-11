@@ -148,9 +148,10 @@ class RGBCollimator_Fourier(nn.Module):
         # add sensor noise
         # FIXME
         # standard deviation drawn from uni dist
-        rand_sigma = torch.tensor((.02 - .001) * torch.rand(1) + 0.001)
+        # rand_sigma = torch.tensor((.02 - .001) * torch.rand(1) + 0.001)
+        rand_sigma = ((.02 - .001) * torch.rand(1) + 0.001).clone().detach().to(CUDA_DEVICE)
         # add gaussian noise to simulate sensor noise
         output_image += torch.normal(mean=torch.zeros_like(output_image),
-                                     std=torch.ones_like(output_image) * rand_sigma.to(CUDA_DEVICE))
+                                     std=torch.ones_like(output_image) * rand_sigma)
 
         return output_image, psfs, self.heightMapElement.height_map
