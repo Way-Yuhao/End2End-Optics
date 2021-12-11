@@ -192,19 +192,21 @@ def train_dev(net, tb, load_weights=False, pre_trained_params_path=None):
 
 def main():
     global version, model_name
-    model_name = "RGBCollimator_Fourier"
-    version = "-v2.0.0"
+    # model_name = "RGBCollimator_Fourier"
+    model_name = "RGBCollimator"
+    # version = "-v2.0.2"
+    version = "-v1.1.2"
     param_to_load = None
     tb = SummaryWriter('./runs/' + model_name + version)
     # simple lens
-    # net = RGBCollimator(sensor_distance=sensor_distance, refractive_idcs=refractive_idcs, wave_lengths=wave_lengths,
-    #                     patch_size=patch_size, sample_interval=sample_interval, wave_resolution=wave_resolution,
-    #                     height_tolerance=height_tolerance)
-
-    # Fourier system
-    net = RGBCollimator_Fourier(sensor_distance=sensor_distance, refractive_idcs=refractive_idcs, wave_lengths=wave_lengths,
+    net = RGBCollimator(sensor_distance=sensor_distance, refractive_idcs=refractive_idcs, wave_lengths=wave_lengths,
                         patch_size=patch_size, sample_interval=sample_interval, wave_resolution=wave_resolution,
                         height_tolerance=height_tolerance)
+
+    # Fourier system
+    # net = RGBCollimator_Fourier(sensor_distance=sensor_distance, refractive_idcs=refractive_idcs, wave_lengths=wave_lengths,
+    #                     patch_size=patch_size, sample_interval=sample_interval, wave_resolution=wave_resolution,
+    #                     height_tolerance=height_tolerance)
 
     train_dev(net, tb, load_weights=False, pre_trained_params_path=param_to_load)
     tb.close()

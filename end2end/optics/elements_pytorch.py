@@ -139,6 +139,7 @@ class FourierElement(nn.Module):
         self.fourier_coeffs_reals, self.fourier_coeffs_complex = self.fourier_coeffs_initializer()
         self.padding_width = int((1 - self.frequency_range) * self.height_map_shape[2]) // 2
         self.height_map = None
+        self.height_map_noisy = None
         self.phase_shifts = None
         self.height_map_noise = None
         self.fourier_coeffs = None
@@ -174,11 +175,11 @@ class FourierElement(nn.Module):
             # + self.height_tolerance
             # self.height_map_noise = -2 * self.height_tolerance * torch.rand(self.height_map_shape, requires_grad=False) \
             #                   + self.height_tolerance
-            # height_map_noise = -2 * self.height_tolerance * torch.rand(self.height_map_shape) \
-            #                         + self.height_tolerance
-            # self.height_map = self.height_map + self.height_map_noise.to("cuda:6")
+            self.height_map_noise = -2 * self.height_tolerance * torch.rand(self.height_map_shape).to(CUDA_DEVICE) + self.height_tolerance
+            self.height_map_noisy = self.height_map + self.height_map_noise.to(CUDA_DEVICE)
 
-        self.phase_shifts = optics_utils.phaseshifts_from_height_map(self.height_map, self.wave_lengths,
+
+        self.phase_shifts = optics_utils.phaseshifts_from_height_map(self.height_map_noisy, self.wave_lengths,
                                                                      self.refractive_idcs)
         input_field = x.type(torch.complex64)
         return torch.multiply(input_field, self.phase_shifts)
