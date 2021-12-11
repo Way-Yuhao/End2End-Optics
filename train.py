@@ -11,7 +11,7 @@ import os
 import os.path as p
 from tqdm import tqdm
 from matplotlib import pyplot as plt
-from config import CUDA_DEVICE
+from end2end.config import CUDA_DEVICE
 import end2end.optics.optics_utils
 from end2end.edof_reader import ImageFolder
 from end2end.model import RGBCollimator, RGBCollimator_Fourier
@@ -193,7 +193,7 @@ def train_dev(net, tb, load_weights=False, pre_trained_params_path=None):
 def main():
     global version, model_name
     model_name = "RGBCollimator_Fourier"
-    version = "-v2.0.0"
+    version = "-v2.1.0"
     param_to_load = None
     tb = SummaryWriter('./runs/' + model_name + version)
     # simple lens

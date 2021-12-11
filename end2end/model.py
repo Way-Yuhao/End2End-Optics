@@ -4,7 +4,7 @@ import numpy as np
 import end2end.optics.elements_pytorch as elements
 import end2end.optics.propagations_pytorch as propagations
 import end2end.optics.optics_utils as optics_utils
-import end2end.decoder.decovn as decovn
+import end2end.decoder.deconv as deconv
 from config import CUDA_DEVICE
 
 
@@ -193,7 +193,7 @@ class AchromaticEdofFourier(nn.Module):
                                             wave_lengths=self.wave_lengths)
 
         # Deconvolve image using inverse filter
-        self.inverseFilter = decovn.InverseFilter(init_gamma=self.init_gamma)
+        self.inverseFilter = deconv.InverseFilter(init_gamma=self.init_gamma)
 
         # TODO: verify this
         self.circularAperture.requires_grad_(False)
@@ -218,7 +218,7 @@ class AchromaticEdofFourier(nn.Module):
         grid_x = grid_x / self.wave_res[0] * self.physical_size
         grid_y = grid_y / self.wave_res[1] * self.physical_size
 
-        squared_sum = torch.unsqueeze(torch.unsqueeze(grid_x ** 2 + grid_y ** 2, 0), 0) # FIXME: is this best way of ading dims?
+        squared_sum = torch.unsqueeze(torch.unsqueeze(grid_x ** 2 + grid_y ** 2, 0), 0)  # FIXME: is this best way of ading dims?
         curvature = torch.sqrt(squared_sum + depth_map ** 2)
         input_field = torch.exp(torch.complex(torch.zeros_like(curvature), curvature))
 
