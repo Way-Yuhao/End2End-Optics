@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 import torch.nn.functional as F
-from config import CUDA_DEVICE
+from end2end.config import CUDA_DEVICE
 
 # class Propagation(torch.nn.Module):
 #     def __init__(self, input_shape, distance, discretization_size, wave_lengths):

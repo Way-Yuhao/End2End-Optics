@@ -5,7 +5,7 @@ import end2end.optics.elements_pytorch as elements
 import end2end.optics.propagations_pytorch as propagations
 import end2end.optics.optics_utils as optics_utils
 import end2end.decoder.deconv as deconv
-from config import CUDA_DEVICE
+from end2end.config import CUDA_DEVICE
 
 
 class RGBCollimator(nn.Module):
@@ -94,7 +94,9 @@ class RGBCollimator_Fourier(nn.Module):
         self.block_size = torch.tensor(block_size).to(CUDA_DEVICE)
 
         # trainable height map
-        height_map_shape = [1, 1, self.wave_res[0] // block_size, self.wave_res[1] // block_size]
+        # height_map_shape = [1, 1, self.wave_res[0] // block_size, self.wave_res[1] // block_size]
+        height_map_shape = [1, 1, torch.div(self.wave_res[0], block_size, rounding_mode="floor"),
+                            torch.div(self.wave_res[1], block_size, rounding_mode="floor")]
         # self.height_map = self.height_map_initializer()
 
         # Input field is a planar wave.
@@ -146,9 +148,10 @@ class RGBCollimator_Fourier(nn.Module):
 
         # add sensor noise
         # FIXME
-        rand_sigma = torch.tensor((.02 - .001) * torch.rand(1) + 0.001).to(
-            CUDA_DEVICE)  # standard deviation drawn from uni dist
-        # add gaussian noise
+        # standard deviation drawn from uni dist
+        # rand_sigma = torch.tensor((.02 - .001) * torch.rand(1) + 0.001)
+        rand_sigma = ((.02 - .001) * torch.rand(1) + 0.001).clone().detach().to(CUDA_DEVICE)
+        # add gaussian noise to simulate sensor noise
         output_image += torch.normal(mean=torch.zeros_like(output_image),
                                      std=torch.ones_like(output_image) * rand_sigma)
 

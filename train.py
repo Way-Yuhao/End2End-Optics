@@ -111,21 +111,27 @@ def disp_plt(img, title="", idx=None):
     return
 
 
-def tensorboard_vis(tb, ep, mode="train", psf=None, height_map=None, train_output=None, plt_1d_psf=True):
+def tensorboard_vis(tb, ep, mode="train", psf=None, height_map=None, output=None, plt_1d_psf=True, target=None):
     if psf is not None:
-        tb.add_image('{}/normalized_psf'.format(mode), psf[0, :, :, :] / psf.max(), global_step=ep)
+        crop_transform = torchvision.transforms.CenterCrop(50)
+        cropped_psf = crop_transform(psf)
+        tb.add_image('{}/normalized_psf'.format(mode), cropped_psf[0, :, :, :] / psf.max(), global_step=ep)
     if height_map is not None:
         tb.add_image('{}/normalized_height_map'.format(mode), height_map[0, :, ::4, ::4] / height_map.max(), global_step=ep)
-    if train_output is not None:
-        output_img_grid = torchvision.utils.make_grid(train_output)
+    if output is not None:
+        output_img_grid = torchvision.utils.make_grid(output)
         tb.add_image("{}/outputs".format(mode), output_img_grid, global_step=ep)
+    if target is not None:
+        target_img_grid = torchvision.utils.make_grid(target)
+        tb.add_image("{}/target".format(mode), target_img_grid, global_step=ep)
     if plt_1d_psf:
         psf_plot = torch.sum(psf, dim=2)
         psf_plot = psf_plot.cpu().detach().numpy()
         fig, ax = plt.subplots()
-        ax.plot(psf_plot[0, 0, :], c='r')
-        ax.plot(psf_plot[0, 1, :], c='g')
-        ax.plot(psf_plot[0, 2, :], c='b')
+        ax.plot(psf_plot[0, 0, 256-25:256+25], c='r', label="R, inf")
+        ax.plot(psf_plot[0, 1, 256-25:256+25], c='g', label="G, inf")
+        ax.plot(psf_plot[0, 2, 256-25:256+25], c='b', label="B, inf")
+        ax.legend()
         tb.add_figure(tag="{}/1D_psf".format(mode), figure=fig, global_step=ep)
     return
 
@@ -146,7 +152,7 @@ def train_dev(net, tb, load_weights=False, pre_trained_params_path=None):
     # scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[500, 1000, 1500], gamma=.8)
 
     running_train_loss, running_dev_loss = 0.0, 0.0  # per epoch
-    train_psf, train_height_map, train_output, dev_output = None, None, None, None
+    train_psf, train_height_map, train_output, dev_output, input_ = None, None, None, None, None
     # training & validation loop
     for ep in range(epoch):
         print("Epoch ", ep)
@@ -176,11 +182,13 @@ def train_dev(net, tb, load_weights=False, pre_trained_params_path=None):
         print("train loss = {:.4} | val loss = {:.4}".format(cur_train_loss, cur_dev_loss))
         tb.add_scalar('loss/train', cur_train_loss, ep)
         tb.add_scalar('loss/dev', cur_dev_loss, ep)
+        if ep == 0:
+            tensorboard_vis(tb, ep, mode="dev", target=input_, plt_1d_psf=False)
         if ep % 10 == 0:
             tensorboard_vis(tb, ep, mode="train", psf=train_psf, height_map=train_height_map,
-                            train_output=train_output, plt_1d_psf=True)
+                            output=train_output, plt_1d_psf=True)
             tensorboard_vis(tb, ep, mode="dev", psf=dev_psf, height_map=dev_height_map,
-                            train_output=dev_output, plt_1d_psf=True)
+                            output=dev_output, plt_1d_psf=True)
             save_network_weights(net, ep)
         running_train_loss, running_dev_loss = 0.0, 0.0
         # scheduler.step()

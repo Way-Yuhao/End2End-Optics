@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 import end2end.optics.optics_utils as optics_utils
-from config import CUDA_DEVICE
+from end2end.config import CUDA_DEVICE
 
 
 class CircularAperture(nn.Module):
@@ -139,9 +139,9 @@ class FourierElement(nn.Module):
         self.fourier_coeffs_reals, self.fourier_coeffs_complex = self.fourier_coeffs_initializer()
         self.padding_width = int((1 - self.frequency_range) * self.height_map_shape[2]) // 2
         self.height_map = None
+        self.height_map_noisy = None
         self.phase_shifts = None
         self.height_map_noise = None
-        self.height_map_noisy = None
         self.fourier_coeffs = None
 
         if self.height_tolerance is not None:
@@ -175,8 +175,9 @@ class FourierElement(nn.Module):
             # + self.height_tolerance
             # self.height_map_noise = -2 * self.height_tolerance * torch.rand(self.height_map_shape, requires_grad=False) \
             #                   + self.height_tolerance
-            self.height_map_noise = -2 * self.height_tolerance * torch.rand(self.height_map_shape) + self.height_tolerance
+            self.height_map_noise = -2 * self.height_tolerance * torch.rand(self.height_map_shape).to(CUDA_DEVICE) + self.height_tolerance
             self.height_map_noisy = self.height_map + self.height_map_noise.to(CUDA_DEVICE)
+
 
         self.phase_shifts = optics_utils.phaseshifts_from_height_map(self.height_map_noisy, self.wave_lengths,
                                                                      self.refractive_idcs)
