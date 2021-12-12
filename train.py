@@ -14,15 +14,15 @@ from matplotlib import pyplot as plt
 from end2end.config import CUDA_DEVICE
 import end2end.optics.optics_utils
 from end2end.edof_reader import ImageFolder
-from end2end.model import RGBCollimator, RGBCollimator_Fourier
+from end2end.model import RGBCollimator, RGBCollimator_Fourier, AchromaticEdofFourier
 
 """Global Parameters"""
 div2k_dataset_path = "/mnt/data1/yl241/datasets/Div2K/"
 network_weight_path = "./weight/"
 model_name = None
 version = None
-num_workers_train = 8
-batch_size = 8
+num_workers_train = 4
+batch_size = 4
 
 """Hyper Parameters"""
 init_lr = 5e-1
@@ -38,15 +38,17 @@ ckpt_path = None
 num_steps = 10001  # Number of SGD steps FIXME not used
 patch_size = 512  # Size of patches to be extracted from images, and resolution of simulated sensor
 sample_interval = 2e-6  # Sampling interval (size of one "pixel" in the simulated wavefront)
-wave_resolution = 2496, 2496  # Resolution of the simulated wavefront
+# wave_resolution = 2496, 2496  # Resolution of the simulated wavefront
+wave_resolution = 1248, 1248
 height_tolerance = 20e-9
 hm_reg_scale = 1000.
 
 
 def load_data(dataset_path):
     data_loader = torch.utils.data.DataLoader(
-        ImageFolder(input_dir=dataset_path, img_patch_size=(patch_size, patch_size), input_transform=None, load_all=False,
-                    monochrome=False, augment=False), batch_size=batch_size, num_workers=num_workers_train)
+        ImageFolder(input_dir=dataset_path, img_patch_size=(patch_size, patch_size),
+                    depth_map_resolution=wave_resolution, input_transform=None, load_all=False, monochrome=False,
+                    augment=False), batch_size=batch_size, num_workers=num_workers_train)
     return data_loader
 
 
@@ -162,7 +164,7 @@ def train_dev(net, tb, load_weights=False, pre_trained_params_path=None):
             input_, depth = train_iter.next()
             input_, depth = input_.to(CUDA_DEVICE), depth.to(CUDA_DEVICE)
             optimizer.zero_grad()
-            train_output, train_psf, train_height_map = net(input_)
+            train_output, train_psf, train_height_map = net(input_, depth)
             train_loss = compute_loss(output=train_output, target=input_, heightmap=net.heightMapElement.height_map)
             train_loss.backward()
             optimizer.step()
@@ -172,7 +174,7 @@ def train_dev(net, tb, load_weights=False, pre_trained_params_path=None):
             for _ in range(dev_num_mini_batches):
                 input_, depth = dev_iter.next()
                 input_, depth = input_.to(CUDA_DEVICE), depth.to(CUDA_DEVICE)
-                dev_output, dev_psf, dev_height_map = net(input_)
+                dev_output, dev_psf, dev_height_map = net(input_, depth)
                 dev_loss = compute_loss(output=dev_output, target=input_, heightmap=net.heightMapElement.height_map)
                 running_dev_loss += dev_loss.item()
 
@@ -200,8 +202,8 @@ def train_dev(net, tb, load_weights=False, pre_trained_params_path=None):
 
 def main():
     global version, model_name
-    model_name = "RGBCollimator_Fourier"
-    version = "-v2.1.0"
+    model_name = "AchromaticEdofFourier"
+    version = "-v3.0.0"
     param_to_load = None
     tb = SummaryWriter('./runs/' + model_name + version)
     # simple lens
@@ -210,10 +212,13 @@ def main():
     #                     height_tolerance=height_tolerance)
 
     # Fourier system
-    net = RGBCollimator_Fourier(sensor_distance=sensor_distance, refractive_idcs=refractive_idcs, wave_lengths=wave_lengths,
+    # net = RGBCollimator_Fourier(sensor_distance=sensor_distance, refractive_idcs=refractive_idcs, wave_lengths=wave_lengths,
+    #                     patch_size=patch_size, sample_interval=sample_interval, wave_resolution=wave_resolution,
+    #                     height_tolerance=height_tolerance)
+
+    net = AchromaticEdofFourier(sensor_distance=sensor_distance, refractive_idcs=refractive_idcs, wave_lengths=wave_lengths,
                         patch_size=patch_size, sample_interval=sample_interval, wave_resolution=wave_resolution,
                         height_tolerance=height_tolerance)
-
     train_dev(net, tb, load_weights=False, pre_trained_params_path=param_to_load)
     tb.close()
 

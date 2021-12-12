@@ -4,7 +4,7 @@ import numpy as np
 import end2end.optics.elements_pytorch as elements
 import end2end.optics.propagations_pytorch as propagations
 import end2end.optics.optics_utils as optics_utils
-import end2end.decoder.deconv as deconv
+from end2end.decoder.deconv import InverseFilter
 from end2end.config import CUDA_DEVICE
 
 
@@ -173,12 +173,13 @@ class AchromaticEdofFourier(nn.Module):
         self.block_size = torch.tensor(block_size).to(CUDA_DEVICE)
         self.physical_size = self.wave_res[0] * self.sample_interval
         self.pixel_size = self.sample_interval * self.wave_res[0] / self.patch_size
-        self.init_gamma = init_gamma
+        self.init_gamma = torch.tensor(init_gamma).to(CUDA_DEVICE)
 
         print("Physical size is %0.2e.\nWave resolution is %d." % (self.physical_size, self.wave_res[0]))
 
         # trainable height map
-        height_map_shape = [1, 1, self.wave_res[0] // block_size, self.wave_res[1] // block_size]
+        height_map_shape = [1, 1, torch.div(self.wave_res[0], block_size, rounding_mode="floor"),
+                            torch.div(self.wave_res[1], block_size, rounding_mode="floor")]
         # self.height_map = self.height_map_initializer()
 
         # Planar wave hits aperture: phase is shifted by phase plate
@@ -191,12 +192,12 @@ class AchromaticEdofFourier(nn.Module):
 
         # Propagate field from aperture to sensor
         self.fresnelPropagation = \
-            propagations.FresnelPropagation(input_shape=self.input_field.shape, distance=self.sensor_distance,
+            propagations.FresnelPropagation(input_shape=(1, len(self.wave_lengths), self.wave_res[0], self.wave_res[1]), distance=self.sensor_distance,
                                             discretization_size=self.sample_interval,
                                             wave_lengths=self.wave_lengths)
 
         # Deconvolve image using inverse filter
-        self.inverseFilter = deconv.InverseFilter(init_gamma=self.init_gamma)
+        self.inverseFilter = InverseFilter(init_gamma=self.init_gamma)
 
         # TODO: verify this
         self.circularAperture.requires_grad_(False)
@@ -212,12 +213,15 @@ class AchromaticEdofFourier(nn.Module):
         :param depth_map: [m, c, x, y]
         :return: output image [m, c, x, y], psf [m, c, x, y]
         """
-
+        # expecting [m, 3, H, W]
+        # field should be [m, 3, h, w]
         # spherical wavefront based on target depth
-        xx = torch.linspace(-self.wave_res[0] // 2, self.wave_res[0] // 2, self.wave_res[0])
-        yy = torch.linspace(-self.wave_res[1] // 2, self.wave_res[1] // 2, self.wave_res[1])
+        xx = torch.linspace(torch.div(-self.wave_res[0], 2, rounding_mode="floor"),
+                            torch.div(self.wave_res[0], 2,  rounding_mode="floor"), self.wave_res[0])
+        yy = torch.linspace(torch.div(-self.wave_res[1], 2, rounding_mode="floor"),
+                            torch.div(self.wave_res[1], 2, rounding_mode="floor"), self.wave_res[1])
         grid_x, grid_y = torch.meshgrid(xx, yy)
-
+        grid_x, grid_y = grid_x.to(CUDA_DEVICE), grid_y.to(CUDA_DEVICE)
         grid_x = grid_x / self.wave_res[0] * self.physical_size
         grid_y = grid_y / self.wave_res[1] * self.physical_size
 
@@ -232,7 +236,7 @@ class AchromaticEdofFourier(nn.Module):
         # The psf is the intensities of the propagated field.
         psfs = optics_utils.get_intensities(field)
 
-        # Downsample psf to image resolution & normalize to sum to 1
+        # Down-sample psf to image resolution & normalize to sum to 1
         psfs = optics_utils.area_down_sampling(psfs, self.patch_size)
         psfs = torch.div(psfs, torch.sum(psfs, dim=(2, 3), keepdim=True))
         # optics.attach_summaries('PSF', psfs, image=True, log_image=True) TODO
@@ -242,14 +246,12 @@ class AchromaticEdofFourier(nn.Module):
         # optics.attach_summaries('output_image', output_image, image=True, log_image=False) TODO
 
         # add sensor noise
-        # FIXME
-        rand_sigma = torch.tensor((.02 - .001) * torch.rand(1) + 0.001).to(
-            CUDA_DEVICE)  # standard deviation drawn from uni dist
-        # add gaussian noise
+        rand_sigma = ((.02 - .001) * torch.rand(1) + 0.001).clone().detach().to(CUDA_DEVICE)
+        # add gaussian noise to simulate sensor noise
         output_image += torch.normal(mean=torch.zeros_like(output_image),
                                      std=torch.ones_like(output_image) * rand_sigma)
 
         # deconvolve noisy and blurry image
         output_image = self.inverseFilter(output_image, output_image, psfs)
 
-        return output_image, psfs
+        return output_image, psfs, self.heightMapElement.height_map

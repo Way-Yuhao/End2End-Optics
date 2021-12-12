@@ -33,7 +33,8 @@ def cvt_monochrome(input_):
 
 class ImageFolder(VisionDataset):
 
-    def __init__(self, input_dir, img_patch_size=(1024, 1024), input_transform=None, load_all=False, monochrome=False, augment=False):
+    def __init__(self, input_dir, img_patch_size=(1024, 1024), depth_map_resolution=(1024, 1024), input_transform=None,
+                 load_all=False, monochrome=False, augment=False):
         """
         :param input_dir: path to input directory
         :param input_transform:
@@ -45,6 +46,7 @@ class ImageFolder(VisionDataset):
         self.input_dir = input_dir
         self.load_all = load_all
         self.img_patch_size = img_patch_size
+        self.depth_map_resolution = depth_map_resolution
         self.isMonochrome = monochrome
         self.augment = augment
 
@@ -84,7 +86,9 @@ class ImageFolder(VisionDataset):
         """
         rand_depth_idx = np.random.multinomial(1, [1 / 5] * 5)
         rand_depth = DEPTH_OPTIONS[np.argmax(rand_depth_idx)]
-        rand_depth_map = torch.ones(self.img_patch_size, dtype=torch.float32) * rand_depth
+        # print(rand_depth)
+        rand_depth_map = torch.ones(self.depth_map_resolution, dtype=torch.float32) * rand_depth
+        rand_depth_map = torch.stack((rand_depth_map, rand_depth_map, rand_depth_map), dim=0)  # FIXME: change 3 to num_wl
         return rand_depth_map
 
     def augment(self):
