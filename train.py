@@ -164,7 +164,7 @@ def train_dev(net, tb, load_weights=False, pre_trained_params_path=None):
             input_, depth = train_iter.next()
             input_, depth = input_.to(CUDA_DEVICE), depth.to(CUDA_DEVICE)
             optimizer.zero_grad()
-            train_output, train_psf, train_height_map = net(input_, depth)
+            train_output, _, train_height_map = net(input_, depth)
             train_loss = compute_loss(output=train_output, target=input_, heightmap=net.heightMapElement.height_map)
             train_loss.backward()
             optimizer.step()
@@ -174,7 +174,7 @@ def train_dev(net, tb, load_weights=False, pre_trained_params_path=None):
             for _ in range(dev_num_mini_batches):
                 input_, depth = dev_iter.next()
                 input_, depth = input_.to(CUDA_DEVICE), depth.to(CUDA_DEVICE)
-                dev_output, dev_psf, dev_height_map = net(input_, depth)
+                dev_output, _, dev_height_map = net(input_, depth)
                 dev_loss = compute_loss(output=dev_output, target=input_, heightmap=net.heightMapElement.height_map)
                 running_dev_loss += dev_loss.item()
 
@@ -187,9 +187,9 @@ def train_dev(net, tb, load_weights=False, pre_trained_params_path=None):
         if ep == 0:
             tensorboard_vis(tb, ep, mode="dev", target=input_, plt_1d_psf=False)
         if ep % 10 == 0:
-            tensorboard_vis(tb, ep, mode="train", psf=train_psf, height_map=train_height_map,
+            tensorboard_vis(tb, ep, mode="train", psf=None, height_map=train_height_map,
                             output=train_output, plt_1d_psf=True)
-            tensorboard_vis(tb, ep, mode="dev", psf=dev_psf, height_map=dev_height_map,
+            tensorboard_vis(tb, ep, mode="dev", psf=net.sample_psfs(), height_map=dev_height_map,
                             output=dev_output, plt_1d_psf=True)
             save_network_weights(net, ep)
         running_train_loss, running_dev_loss = 0.0, 0.0

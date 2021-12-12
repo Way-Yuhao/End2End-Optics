@@ -6,6 +6,7 @@ import end2end.optics.propagations_pytorch as propagations
 import end2end.optics.optics_utils as optics_utils
 from end2end.decoder.deconv import InverseFilter
 from end2end.config import CUDA_DEVICE
+from end2end.edof_reader import DEPTH_OPTIONS
 
 
 class RGBCollimator(nn.Module):
@@ -255,3 +256,35 @@ class AchromaticEdofFourier(nn.Module):
         output_image = self.inverseFilter(output_image, output_image, psfs)
 
         return output_image, psfs, self.heightMapElement.height_map
+
+    def sample_psfs(self):
+
+        depth_map = torch.ones(DEPTH_OPTIONS.shape[0], self.wave_lengths.shape[0], self.wave_res[0], self.wave_res[1]) \
+                   * DEPTH_OPTIONS
+
+        xx = torch.linspace(torch.div(-self.wave_res[0], 2, rounding_mode="floor"),
+                            torch.div(self.wave_res[0], 2, rounding_mode="floor"), self.wave_res[0])
+        yy = torch.linspace(torch.div(-self.wave_res[1], 2, rounding_mode="floor"),
+                            torch.div(self.wave_res[1], 2, rounding_mode="floor"), self.wave_res[1])
+        grid_x, grid_y = torch.meshgrid(xx, yy)
+        grid_x, grid_y = grid_x.to(CUDA_DEVICE), grid_y.to(CUDA_DEVICE)
+        grid_x = grid_x / self.wave_res[0] * self.physical_size
+        grid_y = grid_y / self.wave_res[1] * self.physical_size
+
+        squared_sum = torch.unsqueeze(torch.unsqueeze(grid_x ** 2 + grid_y ** 2, 0),
+                                      0)  # FIXME: is this best way of ading dims?
+        curvature = torch.sqrt(squared_sum + depth_map ** 2)
+        input_field = torch.exp(torch.complex(torch.zeros_like(curvature), curvature))
+
+        field = self.heightMapElement(input_field)
+        field = self.circularAperture(field)
+        field = self.fresnelPropagation(field)
+
+        # The psf is the intensities of the propagated field.
+        psfs = optics_utils.get_intensities(field)
+
+        # Down-sample psf to image resolution & normalize to sum to 1
+        psfs = optics_utils.area_down_sampling(psfs, self.patch_size)
+        psfs = torch.div(psfs, torch.sum(psfs, dim=(2, 3), keepdim=True))
+
+        return psfs
