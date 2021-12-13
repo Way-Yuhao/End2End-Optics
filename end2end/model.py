@@ -229,8 +229,10 @@ class AchromaticEdofFourier(nn.Module):
 
         # FIXME: is this best way of ading dims?
         squared_sum = torch.unsqueeze(torch.unsqueeze(grid_x ** 2 + grid_y ** 2, 0), 0)
-        curvature = torch.sqrt(squared_sum + depth_map ** 2)
-        input_field = torch.exp(torch.complex(torch.zeros_like(curvature), curvature))
+        curvature = torch.sqrt(squared_sum + depth_map ** 2) # [m, c, H, W]
+        wave_nos = 2. * np.pi / self.wave_lengths # [c,]
+        wave_nos = wave_nos.reshape([1, -1, 1, 1])
+        input_field = torch.exp(torch.complex(torch.zeros_like(curvature), wave_nos * curvature))
 
         field = self.heightMapElement(input_field)
         field = self.circularAperture(field)
@@ -276,7 +278,9 @@ class AchromaticEdofFourier(nn.Module):
         # FIXME: is this best way of ading dims?
         squared_sum = torch.unsqueeze(torch.unsqueeze(grid_x ** 2 + grid_y ** 2, 0), 0)
         curvature = torch.sqrt(squared_sum + depth_map ** 2)
-        input_field = torch.exp(torch.complex(torch.zeros_like(curvature), curvature))
+        wave_nos = 2. * np.pi / self.wave_lengths  # [c,]
+        wave_nos = wave_nos.reshape([1, -1, 1, 1])
+        input_field = torch.exp(torch.complex(torch.zeros_like(curvature), wave_nos * curvature))
 
         field = self.heightMapElement(input_field)
         field = self.circularAperture(field)
