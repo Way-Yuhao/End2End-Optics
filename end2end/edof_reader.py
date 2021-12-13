@@ -6,6 +6,7 @@ import os
 import os.path as p
 import numpy as np
 import torch
+import torchvision.transforms
 import torchvision.transforms as transforms
 from natsort import natsorted
 from torchvision.datasets.vision import VisionDataset
@@ -34,7 +35,7 @@ def cvt_monochrome(input_):
 class ImageFolder(VisionDataset):
 
     def __init__(self, input_dir, img_patch_size=(1024, 1024), depth_map_resolution=(1024, 1024), input_transform=None,
-                 load_all=False, monochrome=False, augment=False):
+                 load_all=False, monochrome=False, augment=False, mode="train"):
         """
         :param input_dir: path to input directory
         :param input_transform:
@@ -48,16 +49,18 @@ class ImageFolder(VisionDataset):
         self.img_patch_size = img_patch_size
         self.depth_map_resolution = depth_map_resolution
         self.isMonochrome = monochrome
-        self.augment = augment
-
+        self.mode = mode
+        self.augment = augment if mode != "test" else False
         self.inputs = natsorted(os.listdir(input_dir))
         if input_transform is not None:
             self.input_transform = input_transform
         else:
             self.input_transform = transforms.Compose([transforms.ToTensor()])
-
         if self.load_all:  # load entire dataset to memory
             raise NotImplementedError
+
+        if self.mode == 'test':
+            print("=====================\nOperating dataloader in test mode.")
 
     def __len__(self):
         return len(self.inputs)
@@ -96,11 +99,15 @@ class ImageFolder(VisionDataset):
 
     def random_crop(self, input_):
         crop_width, crop_height = self.img_patch_size
-        max_h = input_.shape[1] - crop_height
-        max_w = input_.shape[2] - crop_width
-        h = np.random.randint(0, max_h)
-        w = np.random.randint(0, max_w)
-        input_crop = input_[:, h: h + crop_height, w: w + crop_width]
+        if self.mode == 'test':
+            transform = torchvision.transforms.CenterCrop(crop_width)
+            input_crop = transform(input_)
+        else:
+            max_h = input_.shape[1] - crop_height
+            max_w = input_.shape[2] - crop_width
+            h = np.random.randint(0, max_h)
+            w = np.random.randint(0, max_w)
+            input_crop = input_[:, h: h + crop_height, w: w + crop_width]
         return input_crop
 
     def normalize(self, input_):

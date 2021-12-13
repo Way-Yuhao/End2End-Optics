@@ -297,7 +297,8 @@ class AchromaticEdofFourier(nn.Module):
 
     def sample_output_multi_depths(self, input_img):
 
-        input_img = input_img[0, :, :, :]
+        input_img = torch.stack((input_img[0, :, :, :], input_img[0, :, :, :], input_img[0, :, :, :],
+                                 input_img[0, :, :, :], input_img[0, :, :, :]), dim=0)
 
         depth_map = torch.ones(DEPTH_OPTIONS.shape[0], self.wave_lengths.shape[0], self.wave_res[0], self.wave_res[1]) \
                     * DEPTH_OPTIONS[:, None, None, None]  # [5, 3, H, W]
