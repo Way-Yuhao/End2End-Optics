@@ -92,4 +92,4 @@ class FresnelPropagation(torch.nn.Module):
         # Convolution
         out_field = torch.fft.ifft2(objFT * H)
 
-        return out_field
+        return out_field[:, :, Mpad:-Mpad, Npad:-Npad]

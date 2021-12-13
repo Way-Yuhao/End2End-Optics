@@ -115,9 +115,15 @@ def disp_plt(img, title="", idx=None):
 
 def tensorboard_vis(tb, ep, mode="train", psf=None, height_map=None, output=None, plt_1d_psf=True, target=None):
     if psf is not None:
-        crop_transform = torchvision.transforms.CenterCrop(50)
-        cropped_psf = crop_transform(psf)
-        tb.add_image('{}/normalized_psf'.format(mode), cropped_psf[0, :, :, :] / psf.max(), global_step=ep)
+        transform = torchvision.transforms.Compose([
+            lambda x: x / x.max(),
+            torchvision.transforms.CenterCrop(50)
+        ])
+        # crop_transform = torchvision.transforms.CenterCrop(50)
+        cropped_psf = transform(psf)
+        psf_img_grid = torchvision.utils.make_grid(cropped_psf)
+        tb.add_image("{}/psf".format(mode), psf_img_grid, global_step=ep)
+        # tb.add_image('{}/normalized_psf'.format(mode), cropped_psf[0, :, :, :] / psf.max(), global_step=ep)
     if height_map is not None:
         tb.add_image('{}/normalized_height_map'.format(mode), height_map[0, :, ::4, ::4] / height_map.max(), global_step=ep)
     if output is not None:
@@ -130,9 +136,17 @@ def tensorboard_vis(tb, ep, mode="train", psf=None, height_map=None, output=None
         psf_plot = torch.sum(psf, dim=2)
         psf_plot = psf_plot.cpu().detach().numpy()
         fig, ax = plt.subplots()
-        ax.plot(psf_plot[0, 0, 256-25:256+25], c='r', label="R, inf")
-        ax.plot(psf_plot[0, 1, 256-25:256+25], c='g', label="G, inf")
-        ax.plot(psf_plot[0, 2, 256-25:256+25], c='b', label="B, inf")
+        ax.plot(psf_plot[0, 0, 256-25:256+25], c='r', label="R, 0.5m")
+        ax.plot(psf_plot[0, 1, 256-25:256+25], c='g', label="G, 0.5m")
+        ax.plot(psf_plot[0, 2, 256-25:256+25], c='b', label="B, 0.5m")
+
+        ax.plot(psf_plot[2, 0, 256 - 25:256 + 25], c='r', linestyle="dotted",  label="R, 1m")
+        ax.plot(psf_plot[2, 1, 256 - 25:256 + 25], c='g', linestyle="dotted", label="G, 1m")
+        ax.plot(psf_plot[2, 2, 256 - 25:256 + 25], c='b', linestyle="dotted", label="B, 1m")
+
+        ax.plot(psf_plot[4, 0, 256 - 25:256 + 25], c='r', linestyle="dashed", label="R, inf")
+        ax.plot(psf_plot[4, 1, 256 - 25:256 + 25], c='g', linestyle="dashed", label="G, inf")
+        ax.plot(psf_plot[4, 2, 256 - 25:256 + 25], c='b', linestyle="dashed", label="B, inf")
         ax.legend()
         tb.add_figure(tag="{}/1D_psf".format(mode), figure=fig, global_step=ep)
     return
@@ -187,8 +201,8 @@ def train_dev(net, tb, load_weights=False, pre_trained_params_path=None):
         if ep == 0:
             tensorboard_vis(tb, ep, mode="dev", target=input_, plt_1d_psf=False)
         if ep % 10 == 0:
-            tensorboard_vis(tb, ep, mode="train", psf=None, height_map=train_height_map,
-                            output=train_output, plt_1d_psf=True)
+            # tensorboard_vis(tb, ep, mode="train", psf=None, height_map=train_height_map,
+            #                 output=train_output, plt_1d_psf=False)
             tensorboard_vis(tb, ep, mode="dev", psf=net.sample_psfs(), height_map=dev_height_map,
                             output=dev_output, plt_1d_psf=True)
             save_network_weights(net, ep)
@@ -203,7 +217,7 @@ def train_dev(net, tb, load_weights=False, pre_trained_params_path=None):
 def main():
     global version, model_name
     model_name = "AchromaticEdofFourier"
-    version = "-v3.0.0"
+    version = "-v3.0.4"
     param_to_load = None
     tb = SummaryWriter('./runs/' + model_name + version)
     # simple lens

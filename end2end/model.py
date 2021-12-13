@@ -193,7 +193,8 @@ class AchromaticEdofFourier(nn.Module):
 
         # Propagate field from aperture to sensor
         self.fresnelPropagation = \
-            propagations.FresnelPropagation(input_shape=(1, len(self.wave_lengths), self.wave_res[0], self.wave_res[1]), distance=self.sensor_distance,
+            propagations.FresnelPropagation(input_shape=(1, len(self.wave_lengths), self.wave_res[0], self.wave_res[1]),
+                                            distance=self.sensor_distance,
                                             discretization_size=self.sample_interval,
                                             wave_lengths=self.wave_lengths)
 
@@ -218,7 +219,7 @@ class AchromaticEdofFourier(nn.Module):
         # field should be [m, 3, h, w]
         # spherical wavefront based on target depth
         xx = torch.linspace(torch.div(-self.wave_res[0], 2, rounding_mode="floor"),
-                            torch.div(self.wave_res[0], 2,  rounding_mode="floor"), self.wave_res[0])
+                            torch.div(self.wave_res[0], 2, rounding_mode="floor"), self.wave_res[0])
         yy = torch.linspace(torch.div(-self.wave_res[1], 2, rounding_mode="floor"),
                             torch.div(self.wave_res[1], 2, rounding_mode="floor"), self.wave_res[1])
         grid_x, grid_y = torch.meshgrid(xx, yy)
@@ -226,7 +227,8 @@ class AchromaticEdofFourier(nn.Module):
         grid_x = grid_x / self.wave_res[0] * self.physical_size
         grid_y = grid_y / self.wave_res[1] * self.physical_size
 
-        squared_sum = torch.unsqueeze(torch.unsqueeze(grid_x ** 2 + grid_y ** 2, 0), 0)  # FIXME: is this best way of ading dims?
+        # FIXME: is this best way of ading dims?
+        squared_sum = torch.unsqueeze(torch.unsqueeze(grid_x ** 2 + grid_y ** 2, 0), 0)
         curvature = torch.sqrt(squared_sum + depth_map ** 2)
         input_field = torch.exp(torch.complex(torch.zeros_like(curvature), curvature))
 
@@ -253,14 +255,14 @@ class AchromaticEdofFourier(nn.Module):
                                      std=torch.ones_like(output_image) * rand_sigma)
 
         # deconvolve noisy and blurry image
-        output_image = self.inverseFilter(output_image, output_image, psfs)
+        # output_image = self.inverseFilter(output_image, output_image, psfs)
 
         return output_image, psfs, self.heightMapElement.height_map
 
     def sample_psfs(self):
-
         depth_map = torch.ones(DEPTH_OPTIONS.shape[0], self.wave_lengths.shape[0], self.wave_res[0], self.wave_res[1]) \
-                   * DEPTH_OPTIONS
+                    * DEPTH_OPTIONS[:, None, None, None]  # [5, 3, H, W]
+        depth_map = depth_map.to(CUDA_DEVICE)
 
         xx = torch.linspace(torch.div(-self.wave_res[0], 2, rounding_mode="floor"),
                             torch.div(self.wave_res[0], 2, rounding_mode="floor"), self.wave_res[0])
@@ -271,8 +273,8 @@ class AchromaticEdofFourier(nn.Module):
         grid_x = grid_x / self.wave_res[0] * self.physical_size
         grid_y = grid_y / self.wave_res[1] * self.physical_size
 
-        squared_sum = torch.unsqueeze(torch.unsqueeze(grid_x ** 2 + grid_y ** 2, 0),
-                                      0)  # FIXME: is this best way of ading dims?
+        # FIXME: is this best way of ading dims?
+        squared_sum = torch.unsqueeze(torch.unsqueeze(grid_x ** 2 + grid_y ** 2, 0), 0)
         curvature = torch.sqrt(squared_sum + depth_map ** 2)
         input_field = torch.exp(torch.complex(torch.zeros_like(curvature), curvature))
 
