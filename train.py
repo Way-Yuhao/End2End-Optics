@@ -30,14 +30,15 @@ epoch = 2000
 
 """Simulation Parameters"""
 aperture_diameter = 5e-3  # (m)
-sensor_distance = 25e-3  # Distance of sensor to aperture (m)
+sensor_distance = 35.5e-3  # Distance of sensor to aperture (m)
 refractive_idcs = np.array([1.4648, 1.4599, 1.4568])  # Refractive idcs of the phase plate
 wave_lengths = np.array([460, 550, 640]) * 1e-9  # Wave lengths to be modeled and optimized for
 # wave_lengths = np.array([550, 550, 550]) * 1e-9  # monochrome
 ckpt_path = None
 num_steps = 10001  # Number of SGD steps FIXME not used
 patch_size = 512  # Size of patches to be extracted from images, and resolution of simulated sensor
-sample_interval = 2e-6  # Sampling interval (size of one "pixel" in the simulated wavefront)
+# FIXME: REMOVE *2 !!!!!!!!!!!
+sample_interval = 2e-6 * 2  # Sampling interval (size of one "pixel" in the simulated wavefront)
 # wave_resolution = 2496, 2496  # Resolution of the simulated wavefront
 wave_resolution = 1248, 1248
 height_tolerance = 20e-9
@@ -165,7 +166,7 @@ def train_dev(net, tb, load_weights=False, pre_trained_params_path=None):
     train_num_mini_batches = len(train_loader)
     dev_num_mini_batches = len(dev_loader)
     optimizer = optim.SGD(net.parameters(), lr=init_lr, momentum=.5)
-    # scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[500, 1000, 1500], gamma=.8)
+    scheduler = optim.lr_scheduler.StepLR(optimizer=optimizer, step_size=1, gamma=.9)
 
     running_train_loss, running_dev_loss = 0.0, 0.0  # per epoch
     train_psf, train_height_map, train_output, dev_output, input_ = None, None, None, None, None
@@ -198,9 +199,11 @@ def train_dev(net, tb, load_weights=False, pre_trained_params_path=None):
         print("train loss = {:.4} | val loss = {:.4}".format(cur_train_loss, cur_dev_loss))
         tb.add_scalar('loss/train', cur_train_loss, ep)
         tb.add_scalar('loss/dev', cur_dev_loss, ep)
+        tb.add_scalar('loss/lr', scheduler._last_lr[0], ep)
+        scheduler.step()
         if ep == 0:
             tensorboard_vis(tb, ep, mode="dev", target=input_, plt_1d_psf=False)
-        if ep % 10 == 0:
+        if ep % 5 == 0:
             # tensorboard_vis(tb, ep, mode="train", psf=None, height_map=train_height_map,
             #                 output=train_output, plt_1d_psf=False)
             tensorboard_vis(tb, ep, mode="dev", psf=net.sample_psfs(), height_map=dev_height_map,
@@ -217,7 +220,7 @@ def train_dev(net, tb, load_weights=False, pre_trained_params_path=None):
 def main():
     global version, model_name
     model_name = "AchromaticEdofFourier"
-    version = "-v3.0.6-test2"
+    version = "-v3.0.10"
     param_to_load = None
     tb = SummaryWriter('./runs/' + model_name + version)
     # simple lens
@@ -232,7 +235,7 @@ def main():
 
     net = AchromaticEdofFourier(sensor_distance=sensor_distance, refractive_idcs=refractive_idcs, wave_lengths=wave_lengths,
                         patch_size=patch_size, sample_interval=sample_interval, wave_resolution=wave_resolution,
-                        height_tolerance=height_tolerance)
+                        height_tolerance=height_tolerance, frequency_range=.625)
     train_dev(net, tb, load_weights=False, pre_trained_params_path=param_to_load)
     tb.close()
 
