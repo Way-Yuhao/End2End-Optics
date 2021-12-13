@@ -217,7 +217,7 @@ def train_dev(net, tb, load_weights=False, pre_trained_params_path=None):
 def main():
     global version, model_name
     model_name = "AchromaticEdofFourier"
-    version = "-v3.0.5-test"
+    version = "-v3.0.6-test2"
     param_to_load = None
     tb = SummaryWriter('./runs/' + model_name + version)
     # simple lens
