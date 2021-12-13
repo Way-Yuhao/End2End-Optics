@@ -190,7 +190,7 @@ class AchromaticEdofFourier(nn.Module):
                                     refractive_idcs=self.refractive_idcs)
 
         self.circularAperture = elements.CircularAperture()
-
+        # FIXME: WHY IS THIS 1???????
         # Propagate field from aperture to sensor
         self.fresnelPropagation = \
             propagations.FresnelPropagation(input_shape=(1, len(self.wave_lengths), self.wave_res[0], self.wave_res[1]),
