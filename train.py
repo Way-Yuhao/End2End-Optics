@@ -153,6 +153,18 @@ def tensorboard_vis(tb, ep, mode="train", psf=None, height_map=None, output=None
     return
 
 
+def tensorboard_vis_predict(tb, psf=None, height_map=None, output=None, plt_1d_psf=True, target=None):
+    if psf is not None:
+        transform = torchvision.transforms.Compose([
+            lambda x: x / x.max(),
+            torchvision.transforms.CenterCrop(50)])
+        # crop_transform = torchvision.transforms.CenterCrop(50)
+        cropped_psf = transform(psf)
+        psf_img_grid = torchvision.utils.make_grid(cropped_psf)
+        tb.add_image("test/psf", psf_img_grid, global_step=0)
+
+
+
 def train_dev(net, tb, load_weights=False, pre_trained_params_path=None):
     print_params()
     net.to(CUDA_DEVICE)
@@ -170,6 +182,7 @@ def train_dev(net, tb, load_weights=False, pre_trained_params_path=None):
 
     running_train_loss, running_dev_loss = 0.0, 0.0  # per epoch
     train_psf, train_height_map, train_output, dev_output, input_ = None, None, None, None, None
+    lowest_dev_score = 100000
     # training & validation loop
     for ep in range(epoch):
         print("Epoch ", ep)
@@ -209,12 +222,33 @@ def train_dev(net, tb, load_weights=False, pre_trained_params_path=None):
             tensorboard_vis(tb, ep, mode="dev", psf=net.sample_psfs(), height_map=dev_height_map,
                             output=dev_output, plt_1d_psf=True)
             save_network_weights(net, ep)
+        if cur_dev_loss <= lowest_dev_score and cur_dev_loss <= 0.027:
+            save_network_weights(net, ep="{}_lowest={:.4f}".format(ep, cur_dev_loss))
+            lowest_dev_score = cur_dev_loss
         running_train_loss, running_dev_loss = 0.0, 0.0
         # scheduler.step()
 
     print("finished training")
     save_network_weights(net, ep="{}_FINAL".format(epoch))
     return
+
+
+def predict(net, param_path):
+    net.to(CUDA_DEVICE)
+    load_network_weights(net, param_path)
+    dev_loader = load_data(p.join(div2k_dataset_path, "valid"))
+    dev_num_mini_batches = len(dev_loader)
+    dev_iter = iter(dev_loader)
+    running_dev_loss = 0
+    with torch.no_grad():
+        for _ in range(dev_num_mini_batches):
+            input_, depth = dev_iter.next()
+            input_, depth = input_.to(CUDA_DEVICE), depth.to(CUDA_DEVICE)
+            dev_output, _, dev_height_map = net(input_, depth)
+            dev_loss = compute_loss(output=dev_output, target=input_, heightmap=net.heightMapElement.height_map)
+            running_dev_loss += dev_loss.item()
+    total_dev_loss = running_dev_loss / dev_num_mini_batches
+    print("test loss = {:.4}".format(total_dev_loss))
 
 
 def main():
