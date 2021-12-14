@@ -34,7 +34,7 @@ def cvt_monochrome(input_):
 class ImageFolder(VisionDataset):
 
     def __init__(self, input_dir, img_patch_size=(1024, 1024), depth_map_resolution=(1024, 1024), input_transform=None,
-                 load_all=False, monochrome=False, augment=False):
+                 load_all=False, monochrome=False, augment=False, mode="train"):
         """
         :param input_dir: path to input directory
         :param input_transform:
@@ -48,16 +48,18 @@ class ImageFolder(VisionDataset):
         self.img_patch_size = img_patch_size
         self.depth_map_resolution = depth_map_resolution
         self.isMonochrome = monochrome
-        self.augment = augment
-
+        self.mode = mode
+        self.augment = augment if mode != "test" else False
         self.inputs = natsorted(os.listdir(input_dir))
         if input_transform is not None:
             self.input_transform = input_transform
         else:
             self.input_transform = transforms.Compose([transforms.ToTensor()])
-
         if self.load_all:  # load entire dataset to memory
             raise NotImplementedError
+
+        if self.mode == 'test':
+            print("=====================\nOperating dataloader in test mode.")
 
     def __len__(self):
         return len(self.inputs)

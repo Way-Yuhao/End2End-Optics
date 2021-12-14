@@ -61,8 +61,11 @@ def print_params():
 
 
 def load_network_weights(net, path):
-    print("loading pre-trained weights from {}".format(path))
-    net.load_state_dict(torch.load(path))
+    if path is None:
+        print("================\nWARNING: param path is None")
+    else:
+        print("loading pre-trained weights from {}".format(path))
+        net.load_state_dict(torch.load(path))
 
 
 def save_network_weights(net, ep=None):
