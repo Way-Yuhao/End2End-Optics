@@ -15,6 +15,7 @@ from end2end.config import CUDA_DEVICE
 import end2end.optics.optics_utils
 from end2end.edof_reader import ImageFolder
 from end2end.model import RGBCollimator, RGBCollimator_Fourier, AchromaticEdofFourier
+from end2end.edof_reader import DEPTH_OPTIONS
 
 """Global Parameters"""
 div2k_dataset_path = "/mnt/data1/yl241/datasets/Div2K/"
@@ -30,25 +31,26 @@ epoch = 2000
 
 """Simulation Parameters"""
 aperture_diameter = 5e-3  # (m)
-sensor_distance = 25e-3  # Distance of sensor to aperture (m)
+sensor_distance = 35.5e-3  # Distance of sensor to aperture (m)
 refractive_idcs = np.array([1.4648, 1.4599, 1.4568])  # Refractive idcs of the phase plate
 wave_lengths = np.array([460, 550, 640]) * 1e-9  # Wave lengths to be modeled and optimized for
 # wave_lengths = np.array([550, 550, 550]) * 1e-9  # monochrome
 ckpt_path = None
 num_steps = 10001  # Number of SGD steps FIXME not used
 patch_size = 512  # Size of patches to be extracted from images, and resolution of simulated sensor
-sample_interval = 2e-6  # Sampling interval (size of one "pixel" in the simulated wavefront)
+# FIXME: REMOVE *2 !!!!!!!!!!!
+sample_interval = 2e-6 * 2  # Sampling interval (size of one "pixel" in the simulated wavefront)
 # wave_resolution = 2496, 2496  # Resolution of the simulated wavefront
 wave_resolution = 1248, 1248
 height_tolerance = 20e-9
 hm_reg_scale = 1000.
 
 
-def load_data(dataset_path):
+def load_data(dataset_path, mode="train"):
     data_loader = torch.utils.data.DataLoader(
         ImageFolder(input_dir=dataset_path, img_patch_size=(patch_size, patch_size),
                     depth_map_resolution=wave_resolution, input_transform=None, load_all=False, monochrome=False,
-                    augment=False), batch_size=batch_size, num_workers=num_workers_train)
+                    augment=False, mode=mode), batch_size=batch_size, num_workers=num_workers_train)
     return data_loader
 
 
@@ -59,7 +61,8 @@ def print_params():
 
 
 def load_network_weights(net, path):
-    raise NotImplementedError
+    print("loading pre-trained weights from {}".format(path))
+    net.load_state_dict(torch.load(path))
 
 
 def save_network_weights(net, ep=None):
@@ -83,6 +86,18 @@ def compute_loss(output, target, heightmap):
             end2end.optics.optics_utils.laplace_l1_regularizer(img_batch=heightmap, scale=hm_reg_scale)
     total_loss = mse_loss + laplacian_regularizer
     return total_loss
+
+
+def compute_psnr(output, target):
+    """
+    https://github.com/bonlime/pytorch-tools/blob/master/pytorch_tools/metrics/psnr.py
+    modified to incoporate pixel values ranging from [0, 1]
+    :param output:
+    :param target:
+    :return:
+    """
+    mse = torch.mean((output - target) ** 2)
+    return 20 * torch.log10(1. / torch.sqrt(mse))
 
 
 def disp_plt(img, title="", idx=None):
@@ -152,6 +167,16 @@ def tensorboard_vis(tb, ep, mode="train", psf=None, height_map=None, output=None
     return
 
 
+def tensorboard_vis_all_depths(tb, output=None, target=None, ep=0):
+    if output is not None:
+        output_img_grid = torchvision.utils.make_grid(output)
+        tb.add_image("test_all_depths/outputs", output_img_grid, global_step=ep)
+    if target is not None:
+        target_img_grid = torchvision.utils.make_grid(target)
+        tb.add_image("test_all_depths/target", target_img_grid, global_step=ep)
+    return
+
+
 def train_dev(net, tb, load_weights=False, pre_trained_params_path=None):
     print_params()
     net.to(CUDA_DEVICE)
@@ -165,10 +190,11 @@ def train_dev(net, tb, load_weights=False, pre_trained_params_path=None):
     train_num_mini_batches = len(train_loader)
     dev_num_mini_batches = len(dev_loader)
     optimizer = optim.SGD(net.parameters(), lr=init_lr, momentum=.5)
-    # scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[500, 1000, 1500], gamma=.8)
+    scheduler = optim.lr_scheduler.StepLR(optimizer=optimizer, step_size=1, gamma=.8)
 
     running_train_loss, running_dev_loss = 0.0, 0.0  # per epoch
     train_psf, train_height_map, train_output, dev_output, input_ = None, None, None, None, None
+    lowest_dev_score = 100000
     # training & validation loop
     for ep in range(epoch):
         print("Epoch ", ep)
@@ -198,14 +224,19 @@ def train_dev(net, tb, load_weights=False, pre_trained_params_path=None):
         print("train loss = {:.4} | val loss = {:.4}".format(cur_train_loss, cur_dev_loss))
         tb.add_scalar('loss/train', cur_train_loss, ep)
         tb.add_scalar('loss/dev', cur_dev_loss, ep)
+        tb.add_scalar('loss/lr', scheduler._last_lr[0], ep)
+        scheduler.step()
         if ep == 0:
             tensorboard_vis(tb, ep, mode="dev", target=input_, plt_1d_psf=False)
-        if ep % 10 == 0:
+        if ep % 5 == 0:
             # tensorboard_vis(tb, ep, mode="train", psf=None, height_map=train_height_map,
             #                 output=train_output, plt_1d_psf=False)
             tensorboard_vis(tb, ep, mode="dev", psf=net.sample_psfs(), height_map=dev_height_map,
                             output=dev_output, plt_1d_psf=True)
             save_network_weights(net, ep)
+        if cur_dev_loss <= lowest_dev_score and cur_dev_loss <= 0.027:
+            save_network_weights(net, ep="{}_lowest={:.4f}".format(ep, cur_dev_loss))
+            lowest_dev_score = cur_dev_loss
         running_train_loss, running_dev_loss = 0.0, 0.0
         # scheduler.step()
 
@@ -214,11 +245,56 @@ def train_dev(net, tb, load_weights=False, pre_trained_params_path=None):
     return
 
 
+def predict(net, tb, param_path):
+    global batch_size
+    batch_size = len(DEPTH_OPTIONS)
+    net.to(CUDA_DEVICE)
+    load_network_weights(net, param_path)
+    dev_loader = load_data(p.join(div2k_dataset_path, "valid"), mode="test")
+    dev_num_mini_batches = len(dev_loader)
+    running_dev_loss, running_psnr_error = 0, 0
+    with torch.no_grad():
+        dev_iter = iter(dev_loader)
+        # select a few images to generate outputs at all depths
+        input_, depth = dev_iter.next()
+        input_, depth = input_.to(CUDA_DEVICE), depth.to(CUDA_DEVICE)
+        dev_output, _, dev_height_map = net(input_, depth)
+        tensorboard_vis(tb, 0, mode="test", psf=net.sample_psfs(), height_map=dev_height_map,
+                        output=dev_output, plt_1d_psf=True)
+        print("rendered psfs to tenserboard")
+        print("rendering sample images at all depths")
+        for idx in tqdm(range(4)):  # select 4 samples to display at all depths
+            input_, _ = dev_iter.next()
+            input_ = input_.to(CUDA_DEVICE)
+            single_output_all_depths = net.sample_output_multi_depths(input_)
+            tensorboard_vis_all_depths(tb, output=single_output_all_depths, target=input_[0, :, :, :].unsqueeze(dim=0),
+                                       ep=idx)
+        del dev_iter  # reset
+
+        print("evaluating on the entire dataset")
+        # compute losses across entire test set
+        dev_iter = iter(dev_loader)
+        for _ in tqdm(range(dev_num_mini_batches)):
+            input_, depth = dev_iter.next()
+            input_, depth = input_.to(CUDA_DEVICE), depth.to(CUDA_DEVICE)
+            dev_output, _, dev_height_map = net(input_, depth)
+            dev_loss = compute_loss(output=dev_output, target=input_, heightmap=net.heightMapElement.height_map)
+            psnr = compute_psnr(dev_output, input_)
+            running_dev_loss += dev_loss.item()
+            running_psnr_error += psnr
+    total_dev_loss = running_dev_loss / dev_num_mini_batches
+    average_psnr = running_psnr_error / dev_num_mini_batches
+    print("test MSE Error = {:.4} | PSNR = {:.4}".format(total_dev_loss, average_psnr))
+
+    print("finished evaluation")
+
+
 def main():
     global version, model_name
     model_name = "AchromaticEdofFourier"
-    version = "-v3.0.5-test"
-    param_to_load = None
+    # version = "-v3.1.2"
+    version = "-v3.1.1"
+    param_to_load = "./weight/AchromaticEdofFourier-v3.1.1_epoch_6_lowest=0.0228.pth"
     tb = SummaryWriter('./runs/' + model_name + version)
     # simple lens
     # net = RGBCollimator(sensor_distance=sensor_distance, refractive_idcs=refractive_idcs, wave_lengths=wave_lengths,
@@ -232,8 +308,9 @@ def main():
 
     net = AchromaticEdofFourier(sensor_distance=sensor_distance, refractive_idcs=refractive_idcs, wave_lengths=wave_lengths,
                         patch_size=patch_size, sample_interval=sample_interval, wave_resolution=wave_resolution,
-                        height_tolerance=height_tolerance)
-    train_dev(net, tb, load_weights=False, pre_trained_params_path=param_to_load)
+                        height_tolerance=height_tolerance, frequency_range=.625)
+    # train_dev(net, tb, load_weights=False, pre_trained_params_path=param_to_load)
+    predict(net, tb, param_to_load)
     tb.close()
 
 

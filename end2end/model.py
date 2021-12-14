@@ -229,9 +229,9 @@ class AchromaticEdofFourier(nn.Module):
 
         # FIXME: is this best way of ading dims?
         squared_sum = torch.unsqueeze(torch.unsqueeze(grid_x ** 2 + grid_y ** 2, 0), 0)
-        curvature = torch.sqrt(squared_sum + depth_map ** 2) # [m, c, H, W]
-        wave_nos = 2. * np.pi / self.wave_lengths # [c,]
-        wave_nos = wave_nos.reshape([1, -1, 1, 1])
+        curvature = torch.sqrt(squared_sum + depth_map ** 2)  # [m, c, H, W]
+        wave_nos = 2. * np.pi / self.wave_lengths  # [c,]
+        wave_nos = wave_nos.reshape([1, -1, 1, 1]).type(torch.float32)
         input_field = torch.exp(torch.complex(torch.zeros_like(curvature), wave_nos * curvature))
 
         field = self.heightMapElement(input_field)
@@ -257,7 +257,7 @@ class AchromaticEdofFourier(nn.Module):
                                      std=torch.ones_like(output_image) * rand_sigma)
 
         # deconvolve noisy and blurry image
-        # output_image = self.inverseFilter(output_image, output_image, psfs)
+        output_image = self.inverseFilter(output_image, output_image, psfs)
 
         return output_image, psfs, self.heightMapElement.height_map
 
@@ -279,7 +279,7 @@ class AchromaticEdofFourier(nn.Module):
         squared_sum = torch.unsqueeze(torch.unsqueeze(grid_x ** 2 + grid_y ** 2, 0), 0)
         curvature = torch.sqrt(squared_sum + depth_map ** 2)
         wave_nos = 2. * np.pi / self.wave_lengths  # [c,]
-        wave_nos = wave_nos.reshape([1, -1, 1, 1])
+        wave_nos = wave_nos.reshape([1, -1, 1, 1]).type(torch.float32)
         input_field = torch.exp(torch.complex(torch.zeros_like(curvature), wave_nos * curvature))
 
         field = self.heightMapElement(input_field)
@@ -294,3 +294,53 @@ class AchromaticEdofFourier(nn.Module):
         psfs = torch.div(psfs, torch.sum(psfs, dim=(2, 3), keepdim=True))
 
         return psfs
+
+    def sample_output_multi_depths(self, input_img):
+
+        input_img = torch.stack((input_img[0, :, :, :], input_img[0, :, :, :], input_img[0, :, :, :],
+                                 input_img[0, :, :, :], input_img[0, :, :, :]), dim=0)
+
+        depth_map = torch.ones(DEPTH_OPTIONS.shape[0], self.wave_lengths.shape[0], self.wave_res[0], self.wave_res[1]) \
+                    * DEPTH_OPTIONS[:, None, None, None]  # [5, 3, H, W]
+        depth_map = depth_map.to(CUDA_DEVICE)
+
+        xx = torch.linspace(torch.div(-self.wave_res[0], 2, rounding_mode="floor"),
+                            torch.div(self.wave_res[0], 2, rounding_mode="floor"), self.wave_res[0])
+        yy = torch.linspace(torch.div(-self.wave_res[1], 2, rounding_mode="floor"),
+                            torch.div(self.wave_res[1], 2, rounding_mode="floor"), self.wave_res[1])
+        grid_x, grid_y = torch.meshgrid(xx, yy)
+        grid_x, grid_y = grid_x.to(CUDA_DEVICE), grid_y.to(CUDA_DEVICE)
+        grid_x = grid_x / self.wave_res[0] * self.physical_size
+        grid_y = grid_y / self.wave_res[1] * self.physical_size
+
+        # FIXME: is this best way of ading dims?
+        squared_sum = torch.unsqueeze(torch.unsqueeze(grid_x ** 2 + grid_y ** 2, 0), 0)
+        curvature = torch.sqrt(squared_sum + depth_map ** 2)
+        wave_nos = 2. * np.pi / self.wave_lengths  # [c,]
+        wave_nos = wave_nos.reshape([1, -1, 1, 1]).type(torch.float32)
+        input_field = torch.exp(torch.complex(torch.zeros_like(curvature), wave_nos * curvature))
+
+        field = self.heightMapElement(input_field)
+        field = self.circularAperture(field)
+        field = self.fresnelPropagation(field)
+
+        # The psf is the intensities of the propagated field.
+        psfs = optics_utils.get_intensities(field)
+
+        # Down-sample psf to image resolution & normalize to sum to 1
+        psfs = optics_utils.area_down_sampling(psfs, self.patch_size)
+        psfs = torch.div(psfs, torch.sum(psfs, dim=(2, 3), keepdim=True))
+
+        # Image formation: PSF is convolved with input image
+        output_image = optics_utils.img_psf_conv(input_img, psfs).type(torch.float32)
+        # optics.attach_summaries('output_image', output_image, image=True, log_image=False) TODO
+
+        # add sensor noise
+        rand_sigma = ((.02 - .001) * torch.rand(1) + 0.001).clone().detach().to(CUDA_DEVICE)
+        # add gaussian noise to simulate sensor noise
+        output_image += torch.normal(mean=torch.zeros_like(output_image),
+                                     std=torch.ones_like(output_image) * rand_sigma)
+
+        # deconvolve noisy and blurry image
+        output_image = self.inverseFilter(output_image, output_image, psfs)
+        return output_image
