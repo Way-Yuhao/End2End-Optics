@@ -190,7 +190,7 @@ class CubicPhaseElement(nn.Module):
     Propogate wavefront through a phase modulating element with a cubic phase height map
     """
 
-    def __init__(self, height_map_shape, wave_lengths, refractive_idcs, alpha=14., height_tolerance=None, lateral_tolerance=None):
+    def __init__(self, height_map_shape, wave_lengths, refractive_idcs, physical_size, focal_length=1., alpha=14., height_tolerance=None, lateral_tolerance=None):
         """
         :param wave_lengths (np.ndarray[num_wavelengths,]): list of wavelengths to be modeled
         :param height_map (Tensor[1, height, width, 1]): spatial thickness map of the phase plate
@@ -204,6 +204,8 @@ class CubicPhaseElement(nn.Module):
         self.refractive_idcs = refractive_idcs
         self.height_tolerance = height_tolerance
         self.lateral_tolerance = lateral_tolerance
+        self.physical_size = physical_size
+        self.focal_length = focal_length
         self.alpha = alpha
         self.height_map = self.height_map_initializer()
         self.phase_shifts = None
@@ -213,13 +215,21 @@ class CubicPhaseElement(nn.Module):
             print("Phase plate with manufacturing tolerance {:0.2e}".format(self.height_tolerance))
 
     def height_map_initializer(self):
-        xx = torch.linspace(-self.height_map_shape[2]//2,self.height_map_shape[2]//2, self.height_map_shape[2])
+
+        xx = torch.linspace(-self.height_map_shape[2] // 2, self.height_map_shape[2] // 2, self.height_map_shape[2])
         yy = torch.linspace(-self.height_map_shape[3] // 2, self.height_map_shape[3] // 2, self.height_map_shape[3])
         grid_x, grid_y = torch.meshgrid(xx, yy)
+        grid_x = grid_x / self.height_map_shape[2] * self.physical_size
+        grid_y = grid_y / self.height_map_shape[3] * self.physical_size
+
+        phases = ((grid_x / self.focal_length) ** 2 + (grid_y / self.focal_length) ** 2)
+        fresnel_height_map = torch.remainder(phases, self.height_map_shape[2] / self.wave_lengths[1])
+
         cubic_sum = grid_x ** 3 + grid_y ** 3
-        height_map = torch.remainder(self.alpha / torch.pow(self.height_map_shape[1] * self.height_map_shape[2], 1.5) * cubic_sum,
-                                     2. * np.pi)
-        return height_map
+        cubic_height_map = torch.remainder(self.alpha * np.pi / torch.pow(self.height_map_shape[1] * self.height_map_shape[2], 1.5) * cubic_sum,
+                                     self.height_map_shape[2] / self.wave_lengths[1])
+
+        return torch.unsqueeze(torch.unsqueeze(fresnel_height_map + cubic_height_map, dim=0), dim=0)
 
     def forward(self, x):
         """
@@ -249,7 +259,7 @@ class FresnelLensElement(nn.Module):
     Propogate wavefront through a phase modulating element with a Fresn phase height map
     """
 
-    def __init__(self, height_map_shape, wave_lengths, refractive_idcs, height_tolerance=None, lateral_tolerance=None):
+    def __init__(self, height_map_shape, wave_lengths, refractive_idcs, physical_size, focal_length=1.0, height_tolerance=None, lateral_tolerance=None):
         """
         :param wave_lengths (np.ndarray[num_wavelengths,]): list of wavelengths to be modeled
         :param height_map (Tensor[1, height, width, 1]): spatial thickness map of the phase plate
@@ -263,6 +273,8 @@ class FresnelLensElement(nn.Module):
         self.refractive_idcs = refractive_idcs
         self.height_tolerance = height_tolerance
         self.lateral_tolerance = lateral_tolerance
+        self.physical_size = physical_size
+        self.focal_length = focal_length
         self.height_map = self.height_map_initializer()
         self.phase_shifts = None
         self.height_map_noise = None
@@ -271,15 +283,17 @@ class FresnelLensElement(nn.Module):
             print("Phase plate with manufacturing tolerance {:0.2e}".format(self.height_tolerance))
 
     def height_map_initializer(self):
-        xx = torch.linspace(-self.height_map_shape[2]//2,self.height_map_shape[2]//2, self.height_map_shape[2])
+
+        xx = torch.linspace(-self.height_map_shape[2] // 2, self.height_map_shape[2] // 2, self.height_map_shape[2])
         yy = torch.linspace(-self.height_map_shape[3] // 2, self.height_map_shape[3] // 2, self.height_map_shape[3])
         grid_x, grid_y = torch.meshgrid(xx, yy)
-        cubic_sum = grid_x ** 3 + grid_y ** 3
-        exponent = torch.unsqueeze(torch.unsqueeze(cubic_sum, dim=0), dim=0) * self.alpha * np.pi / self.wave_lengths.reshape[1,-1,1,1]
-        height_map = torch.exp(torch.complex(torch.zeros(self.height_map_shape), exponent))
 
+        grid_x = grid_x / self.height_map_shape[2] * self.physical_size
+        grid_y = grid_y / self.height_map_shape[3] * self.physical_size
+        phases = ((grid_x / self.focal_length)**2 + (grid_y / self.focal_length)**2)
+        height_map = torch.remainder(phases, self.height_map_shape[2] / self.wave_lengths[1])
 
-        return height_map
+        return torch.unsqueeze(torch.unsqueeze(height_map, dim=0), dim=0)
 
     def forward(self, x):
         """
