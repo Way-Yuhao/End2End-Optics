@@ -217,8 +217,8 @@ class CubicPhaseElement(nn.Module):
         yy = torch.linspace(-self.height_map_shape[3] // 2, self.height_map_shape[3] // 2, self.height_map_shape[3])
         grid_x, grid_y = torch.meshgrid(xx, yy)
         cubic_sum = grid_x ** 3 + grid_y ** 3
-        exponent = torch.unsqueeze(torch.unsqueeze(cubic_sum, dim=0), dim=0) * self.alpha * np.pi / self.wave_lengths.reshape[1,-1,1,1]
-        height_map = torch.exp(torch.complex(torch.zeros(self.height_map_shape), exponent))
+        height_map = torch.remainder(self.alpha / torch.pow(self.height_map_shape[1] * self.height_map_shape[2], 1.5) * cubic_sum,
+                                     2. * np.pi)
         return height_map
 
     def forward(self, x):
@@ -243,12 +243,13 @@ class CubicPhaseElement(nn.Module):
         input_field = x.type(torch.complex64)
         return torch.multiply(input_field, self.phase_shifts)
 
-class CubicPhaseElement(nn.Module):
+
+class FresnelLensElement(nn.Module):
     """
-    Propogate wavefront through a phase modulating element with a cubic phase height map
+    Propogate wavefront through a phase modulating element with a Fresn phase height map
     """
 
-    def __init__(self, height_map_shape, wave_lengths, refractive_idcs, alpha=14., height_tolerance=None, lateral_tolerance=None):
+    def __init__(self, height_map_shape, wave_lengths, refractive_idcs, height_tolerance=None, lateral_tolerance=None):
         """
         :param wave_lengths (np.ndarray[num_wavelengths,]): list of wavelengths to be modeled
         :param height_map (Tensor[1, height, width, 1]): spatial thickness map of the phase plate
@@ -256,7 +257,7 @@ class CubicPhaseElement(nn.Module):
         :param height_tolerance: range of uniform noise added to height map
         :param lateral_tolerance: ?? (not needed)
         """
-        super(CubicPhaseElement, self).__init__()
+        super(FresnelLensElement, self).__init__()
         self.height_map_shape = height_map_shape
         self.wave_lengths = wave_lengths
         self.refractive_idcs = refractive_idcs
@@ -276,6 +277,8 @@ class CubicPhaseElement(nn.Module):
         cubic_sum = grid_x ** 3 + grid_y ** 3
         exponent = torch.unsqueeze(torch.unsqueeze(cubic_sum, dim=0), dim=0) * self.alpha * np.pi / self.wave_lengths.reshape[1,-1,1,1]
         height_map = torch.exp(torch.complex(torch.zeros(self.height_map_shape), exponent))
+
+
         return height_map
 
     def forward(self, x):
