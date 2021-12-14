@@ -185,6 +185,122 @@ class FourierElement(nn.Module):
         return torch.multiply(input_field, self.phase_shifts)
 
 
+class CubicPhaseElement(nn.Module):
+    """
+    Propogate wavefront through a phase modulating element with a cubic phase height map
+    """
+
+    def __init__(self, height_map_shape, wave_lengths, refractive_idcs, alpha=14., height_tolerance=None, lateral_tolerance=None):
+        """
+        :param wave_lengths (np.ndarray[num_wavelengths,]): list of wavelengths to be modeled
+        :param height_map (Tensor[1, height, width, 1]): spatial thickness map of the phase plate
+        :param refractive_idcs (np.ndarray[num_wavelengths,]): list of refractive indicies of the phase plate
+        :param height_tolerance: range of uniform noise added to height map
+        :param lateral_tolerance: ?? (not needed)
+        """
+        super(CubicPhaseElement, self).__init__()
+        self.height_map_shape = height_map_shape
+        self.wave_lengths = wave_lengths
+        self.refractive_idcs = refractive_idcs
+        self.height_tolerance = height_tolerance
+        self.lateral_tolerance = lateral_tolerance
+        self.alpha = alpha
+        self.height_map = self.height_map_initializer()
+        self.phase_shifts = None
+        self.height_map_noise = None
+
+        if self.height_tolerance is not None:
+            print("Phase plate with manufacturing tolerance {:0.2e}".format(self.height_tolerance))
+
+    def height_map_initializer(self):
+        xx = torch.linspace(-self.height_map_shape[2]//2,self.height_map_shape[2]//2, self.height_map_shape[2])
+        yy = torch.linspace(-self.height_map_shape[3] // 2, self.height_map_shape[3] // 2, self.height_map_shape[3])
+        grid_x, grid_y = torch.meshgrid(xx, yy)
+        cubic_sum = grid_x ** 3 + grid_y ** 3
+        exponent = torch.unsqueeze(torch.unsqueeze(cubic_sum, dim=0), dim=0) * self.alpha * np.pi / self.wave_lengths.reshape[1,-1,1,1]
+        height_map = torch.exp(torch.complex(torch.zeros(self.height_map_shape), exponent))
+        return height_map
+
+    def forward(self, x):
+        """
+        :param x: input_field (Tensor[batch_size, num_wavelengths, height, width]), complex valued wavefront
+        :return: input field shifted by phase plate
+        """
+        # Add manufacturing tolerances in the form of height map noise
+        if self.height_tolerance is not None:
+            pass
+            # TODO: require_grad? Add noise later
+            # height_map_noise = -2 * self.height_tolerance * torch.rand(self.height_map_shape, requires_grad=False) \
+                                    # + self.height_tolerance
+            # self.height_map_noise = -2 * self.height_tolerance * torch.rand(self.height_map_shape, requires_grad=False) \
+            #                   + self.height_tolerance
+            # height_map_noise = -2 * self.height_tolerance * torch.rand(self.height_map_shape) \
+            #                         + self.height_tolerance
+            # self.height_map = self.height_map + self.height_map_noise.to("cuda:6")
+
+        self.phase_shifts = optics_utils.phaseshifts_from_height_map(self.height_map, self.wave_lengths,
+                                                                     self.refractive_idcs)
+        input_field = x.type(torch.complex64)
+        return torch.multiply(input_field, self.phase_shifts)
+
+class CubicPhaseElement(nn.Module):
+    """
+    Propogate wavefront through a phase modulating element with a cubic phase height map
+    """
+
+    def __init__(self, height_map_shape, wave_lengths, refractive_idcs, alpha=14., height_tolerance=None, lateral_tolerance=None):
+        """
+        :param wave_lengths (np.ndarray[num_wavelengths,]): list of wavelengths to be modeled
+        :param height_map (Tensor[1, height, width, 1]): spatial thickness map of the phase plate
+        :param refractive_idcs (np.ndarray[num_wavelengths,]): list of refractive indicies of the phase plate
+        :param height_tolerance: range of uniform noise added to height map
+        :param lateral_tolerance: ?? (not needed)
+        """
+        super(CubicPhaseElement, self).__init__()
+        self.height_map_shape = height_map_shape
+        self.wave_lengths = wave_lengths
+        self.refractive_idcs = refractive_idcs
+        self.height_tolerance = height_tolerance
+        self.lateral_tolerance = lateral_tolerance
+        self.height_map = self.height_map_initializer()
+        self.phase_shifts = None
+        self.height_map_noise = None
+
+        if self.height_tolerance is not None:
+            print("Phase plate with manufacturing tolerance {:0.2e}".format(self.height_tolerance))
+
+    def height_map_initializer(self):
+        xx = torch.linspace(-self.height_map_shape[2]//2,self.height_map_shape[2]//2, self.height_map_shape[2])
+        yy = torch.linspace(-self.height_map_shape[3] // 2, self.height_map_shape[3] // 2, self.height_map_shape[3])
+        grid_x, grid_y = torch.meshgrid(xx, yy)
+        cubic_sum = grid_x ** 3 + grid_y ** 3
+        exponent = torch.unsqueeze(torch.unsqueeze(cubic_sum, dim=0), dim=0) * self.alpha * np.pi / self.wave_lengths.reshape[1,-1,1,1]
+        height_map = torch.exp(torch.complex(torch.zeros(self.height_map_shape), exponent))
+        return height_map
+
+    def forward(self, x):
+        """
+        :param x: input_field (Tensor[batch_size, num_wavelengths, height, width]), complex valued wavefront
+        :return: input field shifted by phase plate
+        """
+        # Add manufacturing tolerances in the form of height map noise
+        if self.height_tolerance is not None:
+            pass
+            # TODO: require_grad? Add noise later
+            # height_map_noise = -2 * self.height_tolerance * torch.rand(self.height_map_shape, requires_grad=False) \
+                                    # + self.height_tolerance
+            # self.height_map_noise = -2 * self.height_tolerance * torch.rand(self.height_map_shape, requires_grad=False) \
+            #                   + self.height_tolerance
+            # height_map_noise = -2 * self.height_tolerance * torch.rand(self.height_map_shape) \
+            #                         + self.height_tolerance
+            # self.height_map = self.height_map + self.height_map_noise.to("cuda:6")
+
+        self.phase_shifts = optics_utils.phaseshifts_from_height_map(self.height_map, self.wave_lengths,
+                                                                     self.refractive_idcs)
+        input_field = x.type(torch.complex64)
+        return torch.multiply(input_field, self.phase_shifts)
+
+
 def height_map_element():  # TODO
     pass  # see non-pytorch version
 
