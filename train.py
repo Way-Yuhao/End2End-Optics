@@ -291,10 +291,12 @@ def predict(net, tb, param_path):
 
 def main():
     global version, model_name
-    model_name = "AchromaticEdofFourier"
+    # model_name = "AchromaticEdofFourier"
     # version = "-v3.1.2"
-    version = "-v3.1.1"
+    model_name = "CubicPhasePlate"
+    version = "-v4.0.0"
     param_to_load = "./weight/AchromaticEdofFourier-v3.1.1_epoch_6_lowest=0.0228.pth"
+    param_to_load = None
     tb = SummaryWriter('./runs/' + model_name + version)
     # simple lens
     # net = RGBCollimator(sensor_distance=sensor_distance, refractive_idcs=refractive_idcs, wave_lengths=wave_lengths,

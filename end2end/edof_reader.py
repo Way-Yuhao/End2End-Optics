@@ -97,7 +97,7 @@ class ImageFolder(VisionDataset):
     def random_crop(self, input_):
         crop_width, crop_height = self.img_patch_size
         if self.mode == 'test':
-            transform = torchvision.transforms.CenterCrop(crop_width)
+            transform = transforms.CenterCrop(crop_width)
             input_crop = transform(input_)
         else:
             max_h = input_.shape[1] - crop_height
